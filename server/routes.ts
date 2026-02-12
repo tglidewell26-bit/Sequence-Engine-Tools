@@ -42,7 +42,7 @@ const upload = multer({
       cb(null, uniqueName);
     },
   }),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 export async function registerRoutes(
@@ -58,45 +58,56 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/assets/upload", upload.single("file"), async (req, res) => {
+  app.post("/api/assets/upload", upload.array("files", 10), async (req, res) => {
     try {
-      const file = req.file;
-      if (!file) return res.status(400).json({ error: "No file uploaded" });
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) return res.status(400).json({ error: "No files uploaded" });
 
       const { instrument, type } = req.body;
       if (!instrument || !type) {
         return res.status(400).json({ error: "Instrument and type are required" });
       }
 
-      let summary: string | undefined;
-      let keywords: string[] | undefined;
+      const results: any[] = [];
+      const errors: string[] = [];
 
-      if (file.mimetype === "application/pdf") {
+      for (const file of files) {
         try {
-          const pdfParse = (await import("pdf-parse")).default;
-          const pdfBuffer = fs.readFileSync(file.path);
-          const pdfData = await pdfParse(pdfBuffer);
-          const result = await summarizePdf(pdfData.text, file.originalname);
-          summary = result.summary;
-          keywords = result.keywords;
-        } catch (pdfError) {
-          console.error("PDF parsing error:", pdfError);
-          summary = "PDF summary unavailable.";
-          keywords = [];
+          let summary: string | undefined;
+          let keywords: string[] | undefined;
+
+          if (file.mimetype === "application/pdf") {
+            try {
+              const pdfParse = (await import("pdf-parse")).default;
+              const pdfBuffer = fs.readFileSync(file.path);
+              const pdfData = await pdfParse(pdfBuffer);
+              const result = await summarizePdf(pdfData.text, file.originalname);
+              summary = result.summary;
+              keywords = result.keywords;
+            } catch (pdfError) {
+              console.error("PDF parsing error:", pdfError);
+              summary = "PDF summary unavailable.";
+              keywords = [];
+            }
+          }
+
+          const asset = await storage.createAsset({
+            fileName: file.originalname,
+            instrument,
+            type,
+            size: file.size,
+            summary,
+            keywords,
+            filePath: file.path,
+          });
+
+          results.push(asset);
+        } catch (fileError: any) {
+          errors.push(`${file.originalname}: ${fileError.message}`);
         }
       }
 
-      const asset = await storage.createAsset({
-        fileName: file.originalname,
-        instrument,
-        type,
-        size: file.size,
-        summary,
-        keywords,
-        filePath: file.path,
-      });
-
-      res.status(201).json(asset);
+      res.status(201).json({ assets: results, errors });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

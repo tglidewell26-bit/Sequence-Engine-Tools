@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Upload, Trash2, FileText, Image, Loader2, Database } from "lucide-react";
 import type { Asset } from "@shared/schema";
 
@@ -22,6 +23,7 @@ export default function KnowledgeBase() {
   const [instrument, setInstrument] = useState("");
   const [assetType, setAssetType] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -43,18 +45,40 @@ export default function KnowledgeBase() {
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
 
     if (!instrument || !assetType) {
       toast({ title: "Please select instrument and type first", variant: "destructive" });
       return;
     }
 
+    const files = Array.from(fileList);
+    const MAX_SIZE = 10 * 1024 * 1024;
+
+    const oversized = files.filter(f => f.size > MAX_SIZE);
+    if (oversized.length > 0) {
+      toast({
+        title: "Files too large",
+        description: `${oversized.map(f => f.name).join(", ")} exceed the 10 MB limit.`,
+        variant: "destructive",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (files.length > 10) {
+      toast({ title: "Too many files", description: "You can upload up to 10 files at a time.", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
+
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      files.forEach(file => formData.append("files", file));
       formData.append("instrument", instrument);
       formData.append("type", assetType);
 
@@ -68,14 +92,29 @@ export default function KnowledgeBase() {
         throw new Error(errText || "Upload failed");
       }
 
+      const result = await res.json();
+      const successCount = result.assets?.length || 0;
+      const errorCount = result.errors?.length || 0;
+
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
-      toast({ title: "Asset uploaded successfully" });
+
+      if (errorCount > 0) {
+        toast({
+          title: `${successCount} uploaded, ${errorCount} failed`,
+          description: result.errors.join("; "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `${successCount} asset${successCount !== 1 ? "s" : ""} uploaded successfully` });
+      }
+
       setInstrument("");
       setAssetType("");
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -119,10 +158,11 @@ export default function KnowledgeBase() {
           </div>
         </div>
 
-        <div>
+        <div className="space-y-2">
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg"
             onChange={handleUpload}
             className="hidden"
@@ -137,14 +177,16 @@ export default function KnowledgeBase() {
           >
             {uploading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading & Analyzing...
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading {uploadProgress.total} file{uploadProgress.total !== 1 ? "s" : ""}...
               </>
             ) : (
               <>
-                <Upload className="w-4 h-4 mr-2" /> Choose File
+                <Upload className="w-4 h-4 mr-2" /> Choose Files
               </>
             )}
           </Button>
+          <p className="text-xs text-muted-foreground">Up to 10 files, 10 MB each. PDFs are auto-summarized.</p>
         </div>
       </Card>
 
