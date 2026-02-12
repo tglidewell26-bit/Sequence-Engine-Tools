@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Copy, Check, Plus, Trash2, Sparkles } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Copy, Check, Sparkles } from "lucide-react";
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
 const MAX_CHARS = 50000;
@@ -44,12 +45,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-interface TimeSlot {
-  id: string;
-  date: string;
-  time: string;
-}
-
 interface GenerateResult {
   sections: SequenceSections;
   selectedAssets: SelectedAssets | null;
@@ -59,29 +54,12 @@ interface GenerateResult {
 export default function Home() {
   const [rawInput, setRawInput] = useState("");
   const [sequenceName, setSequenceName] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    { id: "1", date: "", time: "" },
-  ]);
+  const [availabilityWindow, setAvailabilityWindow] = useState("");
+  const [timeRanges, setTimeRanges] = useState("");
   const [instrumentOverride, setInstrumentOverride] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
-
-  const addTimeSlot = () => {
-    setTimeSlots([...timeSlots, { id: Date.now().toString(), date: "", time: "" }]);
-  };
-
-  const removeTimeSlot = (id: string) => {
-    if (timeSlots.length > 1) {
-      setTimeSlots(timeSlots.filter((s) => s.id !== id));
-    }
-  };
-
-  const updateTimeSlot = (id: string, field: "date" | "time", value: string) => {
-    setTimeSlots(timeSlots.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
-  };
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -95,8 +73,8 @@ export default function Home() {
       const res = await apiRequest("POST", "/api/sequences/generate", {
         rawInput,
         name: sequenceName || "Untitled Sequence",
-        dateRange: dateFrom && dateTo ? `${dateFrom} to ${dateTo}` : undefined,
-        timeSlots: timeSlots.filter((s) => s.date && s.time).map((s) => `${s.date} — ${s.time}`),
+        availabilityWindow: availabilityWindow.trim() || undefined,
+        timeRanges: timeRanges.trim() || undefined,
         instrumentOverride: instrumentOverride || undefined,
       });
       return res.json() as Promise<GenerateResult>;
@@ -159,64 +137,29 @@ export default function Home() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Date From</Label>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              data-testid="input-date-from"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Date To</Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              data-testid="input-date-to"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="availability-window">Availability Window</Label>
+          <Input
+            id="availability-window"
+            placeholder="e.g. the week of March 3rd, or March 3–7"
+            value={availabilityWindow}
+            onChange={(e) => setAvailabilityWindow(e.target.value)}
+            data-testid="input-availability-window"
+          />
+          <p className="text-xs text-muted-foreground">When you're available to meet. Gets injected into your emails as-is.</p>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <Label>Time Slots</Label>
-            <Button size="sm" variant="outline" onClick={addTimeSlot} data-testid="button-add-timeslot">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Add Slot
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {timeSlots.map((slot) => (
-              <div key={slot.id} className="flex items-center gap-2 flex-wrap">
-                <Input
-                  type="date"
-                  className="flex-1 min-w-[140px]"
-                  value={slot.date}
-                  onChange={(e) => updateTimeSlot(slot.id, "date", e.target.value)}
-                  data-testid={`input-slot-date-${slot.id}`}
-                />
-                <Input
-                  type="time"
-                  className="flex-1 min-w-[120px]"
-                  value={slot.time}
-                  onChange={(e) => updateTimeSlot(slot.id, "time", e.target.value)}
-                  data-testid={`input-slot-time-${slot.id}`}
-                />
-                {timeSlots.length > 1 && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => removeTimeSlot(slot.id)}
-                    data-testid={`button-remove-slot-${slot.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="time-ranges">Time Ranges</Label>
+          <Textarea
+            id="time-ranges"
+            placeholder={"e.g. 10am–4pm\nor: 10am–1pm, 2pm–3pm\nor one per line for multiple days"}
+            value={timeRanges}
+            onChange={(e) => setTimeRanges(e.target.value)}
+            className="min-h-[60px] resize-none"
+            data-testid="input-time-ranges"
+          />
+          <p className="text-xs text-muted-foreground">Type your available times however feels natural. Each line becomes a separate entry.</p>
         </div>
 
         <div className="space-y-2">

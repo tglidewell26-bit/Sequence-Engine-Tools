@@ -32,16 +32,33 @@ export function enforceIntroRules(sections: SequenceSections): SequenceSections 
   return result;
 }
 
-export function injectDates(sections: SequenceSections, timeSlots: string[]): SequenceSections {
-  if (!timeSlots || timeSlots.length === 0) return sections;
+export function injectAvailability(
+  sections: SequenceSections,
+  availabilityWindow?: string,
+  timeRanges?: string
+): SequenceSections {
+  if (!availabilityWindow && !timeRanges) return sections;
 
-  const dateBlock = [
-    "I am available:",
-    "",
-    ...timeSlots.map((slot) => `**[${slot}]**`),
-    "",
-  ].join("\n");
+  const lines: string[] = [];
 
+  if (availabilityWindow && timeRanges) {
+    const timeLines = timeRanges.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    lines.push(`I am available ${availabilityWindow}:`);
+    lines.push("");
+    timeLines.forEach(t => lines.push(`• ${t}`));
+    lines.push("");
+  } else if (availabilityWindow) {
+    lines.push(`I am available ${availabilityWindow}.`);
+    lines.push("");
+  } else if (timeRanges) {
+    const timeLines = timeRanges.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    lines.push("I am available:");
+    lines.push("");
+    timeLines.forEach(t => lines.push(`• ${t}`));
+    lines.push("");
+  }
+
+  const dateBlock = lines.join("\n");
   const result = { ...sections };
 
   for (const key of Object.keys(result)) {

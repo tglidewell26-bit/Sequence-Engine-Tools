@@ -6,7 +6,7 @@ import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
 import { parseSequence, detectInstrument } from "./services/parser";
-import { enforceIntroRules, injectDates } from "./services/formatter";
+import { enforceIntroRules, injectAvailability } from "./services/formatter";
 import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
@@ -16,8 +16,8 @@ import { insertAssetsIntoEmail1 } from "./services/asset-inserter";
 const generateSchema = z.object({
   rawInput: z.string().min(1, "Sequence content is required").max(50000),
   name: z.string().optional(),
-  dateRange: z.string().optional(),
-  timeSlots: z.array(z.string()).optional(),
+  availabilityWindow: z.string().optional(),
+  timeRanges: z.string().optional(),
   instrumentOverride: z.string().optional(),
 });
 
@@ -164,7 +164,7 @@ export async function registerRoutes(
       if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
       }
-      const { rawInput, name, dateRange, timeSlots, instrumentOverride } = parseResult.data;
+      const { rawInput, name, availabilityWindow, timeRanges, instrumentOverride } = parseResult.data;
 
       let sections = parseSequence(rawInput);
 
@@ -175,8 +175,8 @@ export async function registerRoutes(
       sections = enforceIntroRules(sections);
       sections = injectLinksInSections(sections);
 
-      if (timeSlots && timeSlots.length > 0) {
-        sections = injectDates(sections, timeSlots);
+      if (availabilityWindow || timeRanges) {
+        sections = injectAvailability(sections, availabilityWindow, timeRanges);
       }
 
       sections = await checkRedundancy(sections);
@@ -192,8 +192,8 @@ export async function registerRoutes(
         name: name || "Untitled Sequence",
         instrument,
         rawInput,
-        dateRange,
-        timeSlots,
+        availabilityWindow,
+        timeRanges,
         sections,
         selectedAssets,
       });
