@@ -1,16 +1,225 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { z } from "zod";
 import { storage } from "./storage";
+import { parseSequence, detectInstrument } from "./services/parser";
+import { enforceIntroRules, injectDates } from "./services/formatter";
+import { injectLinksInSections } from "./services/link-injector";
+import { selectAssets } from "./services/asset-selector";
+import { summarizePdf } from "./services/asset-summarizer";
+import { checkRedundancy } from "./services/redundancy-checker";
+import { insertAssetsIntoEmail1 } from "./services/asset-inserter";
+
+const generateSchema = z.object({
+  rawInput: z.string().min(1, "Sequence content is required").max(50000),
+  name: z.string().optional(),
+  dateRange: z.string().optional(),
+  timeSlots: z.array(z.string()).optional(),
+  instrumentOverride: z.string().optional(),
+});
+
+const updateSequenceSchema = z.object({
+  sections: z.record(z.object({
+    subject: z.string(),
+    body: z.string(),
+  })).optional(),
+  name: z.string().optional(),
+});
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: uploadDir,
+    filename: (_req, file, cb) => {
+      const uniqueName = `${Date.now()}-${file.originalname}`;
+      cb(null, uniqueName);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  app.get("/api/assets", async (_req, res) => {
+    try {
+      const assets = await storage.getAssets();
+      res.json(assets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.post("/api/assets/upload", upload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+      const { instrument, type } = req.body;
+      if (!instrument || !type) {
+        return res.status(400).json({ error: "Instrument and type are required" });
+      }
+
+      let summary: string | undefined;
+      let keywords: string[] | undefined;
+
+      if (file.mimetype === "application/pdf") {
+        try {
+          const pdfParse = (await import("pdf-parse")).default;
+          const pdfBuffer = fs.readFileSync(file.path);
+          const pdfData = await pdfParse(pdfBuffer);
+          const result = await summarizePdf(pdfData.text, file.originalname);
+          summary = result.summary;
+          keywords = result.keywords;
+        } catch (pdfError) {
+          console.error("PDF parsing error:", pdfError);
+          summary = "PDF summary unavailable.";
+          keywords = [];
+        }
+      }
+
+      const asset = await storage.createAsset({
+        fileName: file.originalname,
+        instrument,
+        type,
+        size: file.size,
+        summary,
+        keywords,
+        filePath: file.path,
+      });
+
+      res.status(201).json(asset);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/assets/:id/download", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const asset = await storage.getAsset(id);
+      if (!asset) return res.status(404).json({ error: "Asset not found" });
+      if (!fs.existsSync(asset.filePath)) return res.status(404).json({ error: "File not found" });
+      res.download(asset.filePath, asset.fileName);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/assets/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const asset = await storage.getAsset(id);
+      if (asset && fs.existsSync(asset.filePath)) {
+        fs.unlinkSync(asset.filePath);
+      }
+      await storage.deleteAsset(id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/sequences", async (_req, res) => {
+    try {
+      const sequences = await storage.getSequences();
+      res.json(sequences);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/sequences/:id", async (req, res) => {
+    try {
+      const seq = await storage.getSequence(parseInt(req.params.id));
+      if (!seq) return res.status(404).json({ error: "Sequence not found" });
+      res.json(seq);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sequences/generate", async (req, res) => {
+    try {
+      const parseResult = generateSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
+      }
+      const { rawInput, name, dateRange, timeSlots, instrumentOverride } = parseResult.data;
+
+      let sections = parseSequence(rawInput);
+
+      const instrument = instrumentOverride && instrumentOverride !== "auto"
+        ? instrumentOverride
+        : detectInstrument(rawInput);
+
+      sections = enforceIntroRules(sections);
+      sections = injectLinksInSections(sections);
+
+      if (timeSlots && timeSlots.length > 0) {
+        sections = injectDates(sections, timeSlots);
+      }
+
+      sections = await checkRedundancy(sections);
+
+      let selectedAssets = null;
+      const allAssets = await storage.getAssets();
+      if (allAssets.length > 0 && sections.email1) {
+        selectedAssets = await selectAssets(sections.email1.body, allAssets);
+        sections = insertAssetsIntoEmail1(sections, selectedAssets);
+      }
+
+      const sequence = await storage.createSequence({
+        name: name || "Untitled Sequence",
+        instrument,
+        rawInput,
+        dateRange,
+        timeSlots,
+        sections,
+        selectedAssets,
+      });
+
+      res.json({
+        sections,
+        selectedAssets,
+        sequenceId: sequence.id,
+      });
+    } catch (error: any) {
+      console.error("Generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/sequences/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const parseResult = updateSequenceSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
+      }
+      const updated = await storage.updateSequence(id, parseResult.data);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/sequences/:id", async (req, res) => {
+    try {
+      await storage.deleteSequence(parseInt(req.params.id));
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   return httpServer;
 }
