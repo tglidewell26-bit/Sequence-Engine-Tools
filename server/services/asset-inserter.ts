@@ -11,64 +11,55 @@ export function insertAssetsIntoEmail1(
 
   if (selectedAssets.image) {
     const paragraphs = body.split("\n\n");
-    let painIndex = -1;
-    let solutionIndex = -1;
 
+    const isIntroParagraph = (text: string): boolean => {
+      const lower = text.toLowerCase();
+      return (
+        lower.includes("account manager") ||
+        lower.includes("nice to meet") ||
+        lower.includes("nice to e-meet") ||
+        lower.includes("regional manager") ||
+        lower.includes("i work with") ||
+        /^(hi|hello|hey|dear|greetings)\s/i.test(text.trim())
+      );
+    };
+
+    const hasInstrumentName = (text: string): boolean => {
+      const lower = text.toLowerCase();
+      return lower.includes("geomx") || lower.includes("cosmx") || lower.includes("cellscape");
+    };
+
+    let lastInstrumentIndex = -1;
     for (let i = 0; i < paragraphs.length; i++) {
-      const lower = paragraphs[i].toLowerCase();
-      if (painIndex === -1 && (
-        lower.includes("challenge") ||
-        lower.includes("struggle") ||
-        lower.includes("difficult") ||
-        lower.includes("pain") ||
-        lower.includes("problem") ||
-        lower.includes("limitation") ||
-        lower.includes("wanted to reach out") ||
-        lower.includes("your research") ||
-        lower.includes("your work") ||
-        lower.includes("your lab")
-      )) {
-        painIndex = i;
-      }
-
-      if (painIndex >= 0 && i > painIndex && solutionIndex === -1 && (
-        lower.includes("geomx") ||
-        lower.includes("cosmx") ||
-        lower.includes("cellscape") ||
-        lower.includes("spatial") ||
-        lower.includes("platform") ||
-        lower.includes("solution") ||
-        lower.includes("enable") ||
-        lower.includes("profil")
-      )) {
-        solutionIndex = i;
+      if (isIntroParagraph(paragraphs[i])) continue;
+      if (hasInstrumentName(paragraphs[i])) {
+        lastInstrumentIndex = i;
       }
     }
 
     let insertIndex: number;
-    if (painIndex >= 0 && solutionIndex > painIndex) {
-      insertIndex = solutionIndex + 1;
-    } else if (painIndex >= 0) {
-      insertIndex = painIndex + 1;
+    if (lastInstrumentIndex >= 0) {
+      insertIndex = lastInstrumentIndex + 1;
     } else {
-      let foundInstrument = false;
+      let fallbackIndex = -1;
       for (let i = 0; i < paragraphs.length; i++) {
+        if (isIntroParagraph(paragraphs[i])) continue;
         const lower = paragraphs[i].toLowerCase();
         if (
-          lower.includes("geomx") ||
-          lower.includes("cosmx") ||
-          lower.includes("cellscape") ||
-          lower.includes("spatial")
+          lower.includes("spatial") ||
+          lower.includes("platform") ||
+          lower.includes("solution") ||
+          lower.includes("enable") ||
+          lower.includes("profil")
         ) {
-          insertIndex = i + 1;
-          foundInstrument = true;
-          break;
+          fallbackIndex = i;
         }
       }
-      if (!foundInstrument) {
+      if (fallbackIndex >= 0) {
+        insertIndex = fallbackIndex + 1;
+      } else {
         insertIndex = Math.min(2, paragraphs.length);
       }
-      insertIndex = insertIndex!;
     }
 
     const imageBlock = `[Insert Image: ${selectedAssets.image}]`;

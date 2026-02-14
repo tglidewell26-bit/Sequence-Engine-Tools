@@ -464,6 +464,13 @@ function formatBodyHtml(body: string): string {
     return `__LINK_PLACEHOLDER_${idx}__`;
   });
 
+  const boldPlaceholders: string[] = [];
+  temp = temp.replace(/<strong>([^<]+)<\/strong>/g, (_match, text) => {
+    const idx = boldPlaceholders.length;
+    boldPlaceholders.push(text);
+    return `__BOLD_PLACEHOLDER_${idx}__`;
+  });
+
   let html = temp
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -478,6 +485,11 @@ function formatBodyHtml(body: string): string {
     /\*\*(.+?)\*\*/g,
     "<strong>$1</strong>"
   );
+
+  for (let i = 0; i < boldPlaceholders.length; i++) {
+    const safeText = boldPlaceholders[i].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(`__BOLD_PLACEHOLDER_${i}__`, `<strong>${safeText}</strong>`);
+  }
 
   for (let i = 0; i < linkPlaceholders.length; i++) {
     html = html.replace(`__LINK_PLACEHOLDER_${i}__`, linkPlaceholders[i]);

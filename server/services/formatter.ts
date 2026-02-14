@@ -17,11 +17,15 @@ export function injectAvailability(
     ? timeRanges.split("\n").map(l => l.trim()).filter(l => l.length > 0)
     : [];
 
+  function boldWrap(text: string): string {
+    return `<strong>${text}</strong>`;
+  }
+
   for (const key of Object.keys(result)) {
     let body = result[key].body;
 
     if (availabilityWindow) {
-      body = body.replace(/\[Dates\]/gi, availabilityWindow);
+      body = body.replace(/\[Dates\]/gi, boldWrap(availabilityWindow));
     }
 
     if (timeLines.length > 0) {
@@ -33,13 +37,13 @@ export function injectAvailability(
           body = body.replace(dateTimePattern, () => {
             if (!replaced) {
               replaced = true;
-              return timeLines[0];
+              return boldWrap(timeLines[0]);
             }
             return "";
           });
           body = body.replace(/\n{3,}/g, "\n\n");
         } else {
-          body = body.replace(dateTimePattern, timeLines[0]);
+          body = body.replace(dateTimePattern, boldWrap(timeLines[0]));
         }
 
         const availHeaderPattern = /I am available on the following dates and times\.?\s*\n/gi;
@@ -51,16 +55,16 @@ export function injectAvailability(
             ? timeLines[matchIndex]
             : timeLines[timeLines.length - 1];
           matchIndex++;
-          return replacement;
+          return boldWrap(replacement);
         });
       }
     }
 
     if (availabilityWindow || timeRanges) {
       body = body
-        .replace(/\{\{availability\}\}/gi, availabilityWindow || "")
-        .replace(/\[availability\]/gi, availabilityWindow || "")
-        .replace(/\{availability\}/gi, availabilityWindow || "");
+        .replace(/\{\{availability\}\}/gi, boldWrap(availabilityWindow || ""))
+        .replace(/\[availability\]/gi, boldWrap(availabilityWindow || ""))
+        .replace(/\{availability\}/gi, boldWrap(availabilityWindow || ""));
     }
 
     result[key] = { ...result[key], body };
