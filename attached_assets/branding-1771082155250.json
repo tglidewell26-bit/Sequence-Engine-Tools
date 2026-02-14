@@ -1,0 +1,128 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "Roboto",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#0071BC",
+    "accent": "#008DEB",
+    "background": "#000000",
+    "textPrimary": "#FFFFFF",
+    "link": "#008DEB"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Roboto",
+      "heading": "Roboto"
+    },
+    "fontStacks": {
+      "heading": [
+        "Roboto",
+        "sans-serif"
+      ],
+      "body": [
+        "Roboto",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Roboto",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "19.2px",
+      "h2": "60px",
+      "body": "18px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {
+    "buttonPrimary": {
+      "background": "#008DEB",
+      "textColor": "#FFFFFF",
+      "borderColor": "#008DEB",
+      "borderRadius": "40px",
+      "borderRadiusCorners": {
+        "topLeft": "40px",
+        "topRight": "40px",
+        "bottomRight": "40px",
+        "bottomLeft": "40px"
+      },
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#E4F0F7",
+      "textColor": "#56565B",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "File saved at: attached_assets/ogImage.png",
+    "logoHref": "https://brukerspatialbiology.com/",
+    "logoAlt": "File saved at: attached_assets/logoAlt.html"
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+    "confidence": 0.9,
+    "source": "llm"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 1,
+      "text": "Order Today",
+      "reasoning": "Button #6 'Order Today' uses a vibrant brand color (#008DEB) and has strong action-oriented text, making it the primary CTA."
+    },
+    "secondary": {
+      "index": 4,
+      "text": "Featured Events & Webinars\n\t\t\t\n\nView Calendar",
+      "reasoning": "Button #3 'Featured Events & Webinars View Calendar' has a different background color (#E4F0F7) and serves as a secondary action with informative text."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "scientists and researchers in spatial biology"
+  },
+  "designSystem": {
+    "framework": "custom",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": true,
+      "finalSource": "llm",
+      "rawLogoSelection": {
+        "selectedLogoIndex": 0,
+        "selectedLogoReasoning": "Selected #0 because it is visible, located in the header, links to the homepage, and matches the brand inferred from the URL and page title.",
+        "confidence": 0.9
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": true
+    }
+  }
+}
