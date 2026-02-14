@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Copy, Check, Sparkles } from "lucide-react";
+import { Loader2, Copy, Check, Sparkles, Pencil, Save } from "lucide-react";
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
 const MAX_CHARS = 50000;
@@ -222,61 +222,218 @@ export default function Home() {
               (result.selectedAssets.documents.length > 0 || result.selectedAssets.image);
 
             return (
-              <Card key={key} className="p-5 space-y-4" data-testid={`card-section-${key}`}>
-                <h3 className="font-semibold text-base">{label}</h3>
-
-                {section.subject && (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Subject</Label>
-                      <CopyButton text={section.subject} label={`${label} Subject`} />
-                    </div>
-                    <div
-                      className="bg-muted/50 rounded-md p-3 text-sm font-medium"
-                      data-testid={`text-subject-${key}`}
-                    >
-                      {section.subject}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Body</Label>
-                    <CopyButton text={section.body} label={`${label} Body`} isBody />
-                  </div>
-                  <div
-                    className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed"
-                    data-testid={`text-body-${key}`}
-                    dangerouslySetInnerHTML={{ __html: formatBodyHtml(section.body) }}
-                  />
-                </div>
-
-                {hasAttachments && result.selectedAssets && (
-                  <div className="space-y-1" data-testid="section-attachments">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Attachments</Label>
-                    <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
-                      {result.selectedAssets.image && (
-                        <div className="flex items-center gap-2" data-testid="text-attached-image">
-                          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span>Image: {result.selectedAssets.image}</span>
-                        </div>
-                      )}
-                      {result.selectedAssets.documents.map((doc, i) => (
-                        <div key={i} className="flex items-center gap-2" data-testid={`text-attached-doc-${i}`}>
-                          <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                          <span>{doc}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </Card>
+              <SectionCard
+                key={key}
+                sectionKey={key}
+                label={label}
+                section={section}
+                hasAttachments={!!hasAttachments}
+                selectedAssets={result.selectedAssets}
+                onUpdate={(field, value) => {
+                  setResult(prev => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      sections: {
+                        ...prev.sections,
+                        [key]: { ...prev.sections[key], [field]: value },
+                      },
+                    };
+                  });
+                }}
+                sequenceId={result.sequenceId}
+              />
             );
           })}
         </div>
       )}
     </div>
+  );
+}
+
+function SectionCard({
+  sectionKey,
+  label,
+  section,
+  hasAttachments,
+  selectedAssets,
+  onUpdate,
+  sequenceId,
+}: {
+  sectionKey: string;
+  label: string;
+  section: { subject?: string; body: string };
+  hasAttachments: boolean;
+  selectedAssets: SelectedAssets | null;
+  onUpdate: (field: "subject" | "body", value: string) => void;
+  sequenceId: number;
+}) {
+  const [editingSubject, setEditingSubject] = useState(false);
+  const [editingBody, setEditingBody] = useState(false);
+  const [subjectDraft, setSubjectDraft] = useState("");
+  const [bodyDraft, setBodyDraft] = useState("");
+  const { toast } = useToast();
+  const bodyEditRef = useRef<HTMLTextAreaElement>(null);
+
+  const persistEdit = async (field: "subject" | "body", newVal: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/sequences/${sequenceId}`);
+      const seq = await res.json();
+      const sections = seq.sections;
+      sections[sectionKey][field] = newVal;
+      await apiRequest("PATCH", `/api/sequences/${sequenceId}`, { sections });
+      queryClient.invalidateQueries({ queryKey: ["/api/sequences"] });
+    } catch {}
+  };
+
+  const startEditSubject = () => {
+    setSubjectDraft(section.subject || "");
+    setEditingSubject(true);
+  };
+
+  const saveSubject = () => {
+    onUpdate("subject", subjectDraft);
+    persistEdit("subject", subjectDraft);
+    setEditingSubject(false);
+    toast({ title: `${label} subject updated` });
+  };
+
+  const startEditBody = () => {
+    setBodyDraft(section.body.replace(/<a\s+href="[^"]*">([^<]*)<\/a>/g, "$1"));
+    setEditingBody(true);
+    setTimeout(() => {
+      if (bodyEditRef.current) {
+        bodyEditRef.current.style.height = "auto";
+        bodyEditRef.current.style.height = `${bodyEditRef.current.scrollHeight}px`;
+      }
+    }, 0);
+  };
+
+  const saveBody = () => {
+    onUpdate("body", bodyDraft);
+    persistEdit("body", bodyDraft);
+    setEditingBody(false);
+    toast({ title: `${label} body updated` });
+  };
+
+  return (
+    <Card className="p-5 space-y-4" data-testid={`card-section-${sectionKey}`}>
+      <h3 className="font-semibold text-base">{label}</h3>
+
+      {section.subject !== undefined && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Subject</Label>
+            <div className="flex items-center gap-1">
+              {editingSubject ? (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={saveSubject}
+                  data-testid={`button-save-subject-${sectionKey}`}
+                >
+                  <Save className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={startEditSubject}
+                  data-testid={`button-edit-subject-${sectionKey}`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+              )}
+              <CopyButton text={section.subject || ""} label={`${label} Subject`} />
+            </div>
+          </div>
+          {editingSubject ? (
+            <Input
+              value={subjectDraft}
+              onChange={(e) => setSubjectDraft(e.target.value)}
+              className="text-sm font-medium"
+              data-testid={`input-edit-subject-${sectionKey}`}
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") saveSubject(); }}
+            />
+          ) : (
+            <div
+              className="bg-muted/50 rounded-md p-3 text-sm font-medium"
+              data-testid={`text-subject-${sectionKey}`}
+            >
+              {section.subject}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">Body</Label>
+          <div className="flex items-center gap-1">
+            {editingBody ? (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={saveBody}
+                data-testid={`button-save-body-${sectionKey}`}
+              >
+                <Save className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={startEditBody}
+                data-testid={`button-edit-body-${sectionKey}`}
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+            )}
+            <CopyButton text={section.body} label={`${label} Body`} isBody />
+          </div>
+        </div>
+        {editingBody ? (
+          <textarea
+            ref={bodyEditRef}
+            value={bodyDraft}
+            onChange={(e) => {
+              setBodyDraft(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
+            className="flex w-full rounded-md border border-input bg-background text-foreground text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none min-h-[120px] p-3 leading-relaxed"
+            data-testid={`input-edit-body-${sectionKey}`}
+          />
+        ) : (
+          <div
+            className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed"
+            data-testid={`text-body-${sectionKey}`}
+            dangerouslySetInnerHTML={{ __html: formatBodyHtml(section.body) }}
+          />
+        )}
+      </div>
+
+      {hasAttachments && selectedAssets && (
+        <div className="space-y-1" data-testid="section-attachments">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">Attachments</Label>
+          <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
+            {selectedAssets.image && (
+              <div className="flex items-center gap-2" data-testid="text-attached-image">
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                <span>Image: {selectedAssets.image}</span>
+              </div>
+            )}
+            {selectedAssets.documents.map((doc, i) => (
+              <div key={i} className="flex items-center gap-2" data-testid={`text-attached-doc-${i}`}>
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                <span>{doc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

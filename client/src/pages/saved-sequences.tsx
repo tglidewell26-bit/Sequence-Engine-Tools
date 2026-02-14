@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Eye, Pencil, RotateCcw, Trash2, Copy, Check, FileText, Calendar } from "lucide-react";
+import { Eye, Pencil, RotateCcw, Trash2, Copy, Check, FileText, Calendar, Save } from "lucide-react";
 import type { Sequence, SequenceSections } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -109,8 +109,119 @@ interface ViewDialogProps {
   onOpenChange: (v: boolean) => void;
 }
 
+function ViewSectionField({
+  sectionKey,
+  field,
+  label,
+  value,
+  sequenceId,
+  isBody,
+  onSaved,
+}: {
+  sectionKey: string;
+  field: "subject" | "body";
+  label: string;
+  value: string;
+  sequenceId: number;
+  isBody?: boolean;
+  onSaved: (newValue: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const { toast } = useToast();
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  const saveMutation = useMutation({
+    mutationFn: async (newVal: string) => {
+      const res = await apiRequest("GET", `/api/sequences/${sequenceId}`);
+      const seq = await res.json();
+      const sections = seq.sections;
+      sections[sectionKey][field] = newVal;
+      await apiRequest("PATCH", `/api/sequences/${sequenceId}`, { sections });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sequences"] });
+    },
+  });
+
+  const startEdit = () => {
+    setDraft(isBody ? value.replace(/<a\s+href="[^"]*">([^<]*)<\/a>/g, "$1") : value);
+    setEditing(true);
+    if (isBody) {
+      setTimeout(() => {
+        if (editRef.current) {
+          editRef.current.style.height = "auto";
+          editRef.current.style.height = `${editRef.current.scrollHeight}px`;
+        }
+      }, 0);
+    }
+  };
+
+  const save = () => {
+    onSaved(draft);
+    saveMutation.mutate(draft);
+    setEditing(false);
+    toast({ title: `${label} updated` });
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">{field === "subject" ? "Subject" : "Body"}</span>
+        <div className="flex items-center gap-1">
+          {editing ? (
+            <Button size="icon" variant="ghost" onClick={save} data-testid={`button-save-${field}-${sectionKey}`}>
+              <Save className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button size="icon" variant="ghost" onClick={startEdit} data-testid={`button-edit-${field}-${sectionKey}`}>
+              <Pencil className="w-4 h-4" />
+            </Button>
+          )}
+          <CopyBtn text={value} label={label} isBody={isBody} />
+        </div>
+      </div>
+      {editing ? (
+        isBody ? (
+          <textarea
+            ref={editRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
+            className="flex w-full rounded-md border border-input bg-background text-foreground text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none min-h-[100px] p-3 leading-relaxed"
+            data-testid={`input-edit-${field}-${sectionKey}`}
+          />
+        ) : (
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="text-sm font-medium"
+            data-testid={`input-edit-${field}-${sectionKey}`}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+          />
+        )
+      ) : (
+        isBody ? (
+          <div
+            className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: formatBodyHtml(value) }}
+          />
+        ) : (
+          <div className="bg-muted/50 rounded-md p-3 text-sm font-medium">
+            {value}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
-  const sections = sequence.sections as SequenceSections;
+  const [sections, setSections] = useState<SequenceSections>(sequence.sections as SequenceSections);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,27 +236,25 @@ function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
             return (
               <div key={key} className="space-y-2">
                 <h3 className="font-semibold text-sm">{label}</h3>
-                {section.subject && (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Subject</span>
-                      <CopyBtn text={section.subject} label={`${label} Subject`} />
-                    </div>
-                    <div className="bg-muted/50 rounded-md p-3 text-sm font-medium">
-                      {section.subject}
-                    </div>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Body</span>
-                    <CopyBtn text={section.body} label={`${label} Body`} isBody />
-                  </div>
-                  <div
-                    className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: formatBodyHtml(section.body) }}
+                {section.subject !== undefined && (
+                  <ViewSectionField
+                    sectionKey={key}
+                    field="subject"
+                    label={`${label} Subject`}
+                    value={section.subject || ""}
+                    sequenceId={sequence.id}
+                    onSaved={(v) => setSections(prev => ({ ...prev, [key]: { ...prev[key], subject: v } }))}
                   />
-                </div>
+                )}
+                <ViewSectionField
+                  sectionKey={key}
+                  field="body"
+                  label={`${label} Body`}
+                  value={section.body}
+                  sequenceId={sequence.id}
+                  isBody
+                  onSaved={(v) => setSections(prev => ({ ...prev, [key]: { ...prev[key], body: v } }))}
+                />
               </div>
             );
           })}

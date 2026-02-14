@@ -112,8 +112,6 @@ Given an email body, detected instrument, pre-scored assets, select the best mat
 Rules:
 - Select exactly 1 image (pick the highest-scored image if available)
 - Select 1-2 documents (highest-scored, combined size must be under 5MB)
-- Generate a contextual justification sentence referencing the biological angle and technical strength shown in the image
-  Format: "Below is an example demonstrating [biological angle] at [technical strength]:"
 - Generate a brief attachment reference sentence derived from document summaries
   Format: "I've also attached [brief description] which outlines [specific technical value]."
 - Never select assets for LinkedIn sections
@@ -123,7 +121,6 @@ Response format:
 {
   "image": "file_name.png",
   "documents": ["file1.pdf"],
-  "justification_sentence": "Below is an example demonstrating [bio angle] at [tech strength]:",
   "attachment_reference": "I've also attached [desc] which outlines [value]."
 }`,
         },
@@ -151,7 +148,7 @@ Response format:
     return {
       image: validImage,
       documents: validDocs.length > 0 ? validDocs : candidateDocs.map(d => d.fileName),
-      justificationSentence: parsed.justification_sentence || parsed.attachment_reference || "",
+      justificationSentence: "",
       attachmentReference: parsed.attachment_reference || "",
     };
   } catch (error) {
@@ -159,9 +156,7 @@ Response format:
     return {
       image: scoredImages.length > 0 ? scoredImages[0].asset.fileName : "",
       documents: candidateDocs.map(d => d.fileName),
-      justificationSentence: scoredImages.length > 0
-        ? `Below is an example demonstrating spatial profiling capabilities with the ${detectedInstrument} platform:`
-        : "",
+      justificationSentence: "",
     };
   }
 }

@@ -66,10 +66,7 @@ export function insertAssetsIntoEmail1(
       insertIndex = insertIndex! ?? Math.min(2, paragraphs.length);
     }
 
-    const justification = selectedAssets.justificationSentence ||
-      `Below is an example demonstrating spatial profiling capabilities:`;
-
-    const imageBlock = `${justification}\nImage: ${selectedAssets.image}`;
+    const imageBlock = `[Insert Image: ${selectedAssets.image}]`;
     paragraphs.splice(insertIndex, 0, imageBlock);
     body = paragraphs.join("\n\n");
   }
@@ -102,13 +99,8 @@ export function insertAssetsIntoEmail1(
     const attachRef = selectedAssets.attachmentReference;
     if (attachRef) {
       attachBlock.push("", attachRef);
+      attachBlock.push("");
     }
-
-    attachBlock.push("", "Attachments:");
-    for (const doc of selectedAssets.documents) {
-      attachBlock.push(doc);
-    }
-    attachBlock.push("");
 
     lines.splice(ctaIndex, 0, ...attachBlock);
     body = lines.join("\n");

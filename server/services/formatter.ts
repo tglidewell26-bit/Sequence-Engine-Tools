@@ -163,14 +163,34 @@ export function injectAvailability(
 
     if (timeLines.length > 0) {
       const dateTimePattern = /\[Date\]\s*[—–\-]\s*\[Time\]/g;
-      let matchIndex = 0;
-      body = body.replace(dateTimePattern, () => {
-        const replacement = matchIndex < timeLines.length
-          ? timeLines[matchIndex]
-          : timeLines[timeLines.length - 1];
-        matchIndex++;
-        return replacement;
-      });
+      const matches = body.match(dateTimePattern);
+      if (matches && timeLines.length === 1) {
+        if (matches.length > 1) {
+          let replaced = false;
+          body = body.replace(dateTimePattern, () => {
+            if (!replaced) {
+              replaced = true;
+              return timeLines[0];
+            }
+            return "";
+          });
+          body = body.replace(/\n{3,}/g, "\n\n");
+        } else {
+          body = body.replace(dateTimePattern, timeLines[0]);
+        }
+
+        const availHeaderPattern = /I am available on the following dates and times\.?\s*\n/gi;
+        body = body.replace(availHeaderPattern, "");
+      } else {
+        let matchIndex = 0;
+        body = body.replace(dateTimePattern, () => {
+          const replacement = matchIndex < timeLines.length
+            ? timeLines[matchIndex]
+            : timeLines[timeLines.length - 1];
+          matchIndex++;
+          return replacement;
+        });
+      }
     }
 
     if (availabilityWindow || timeRanges) {
