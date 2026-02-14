@@ -272,12 +272,12 @@ function formatBodyHtml(body: string): string {
 
   html = html.replace(
     /\[Insert Image: (.+?)\]/g,
-    '<span class="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded px-2 py-0.5 text-xs font-medium">📎 Image: $1</span>'
+    '<span class="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded px-2 py-0.5 text-xs font-medium">Image: $1</span>'
   );
 
   html = html.replace(
-    /https?:\/\/[^\s<]+/g,
-    '<span class="text-primary underline">$&</span>'
+    /\(https?:\/\/[^\s<)]+\)/g,
+    '<span class="text-muted-foreground">$&</span>'
   );
 
   html = html.replace(
