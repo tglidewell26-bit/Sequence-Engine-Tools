@@ -23,8 +23,14 @@ const GREETING_PATTERNS: RegExp[] = [
   /^good\s+(morning|afternoon|evening)\s*[,—\u2014\u2013\-]?\s*/i,
 ];
 
-const TIM_INTRO_PATTERN = /my name is tim glidewell/i;
-const I_AM_TIM_PATTERN = /^i'?m tim glidewell/i;
+const TIM_INTRO_PATTERNS: RegExp[] = [
+  /my name is tim glidewell/i,
+  /^i'?m tim glidewell/i,
+  /^i am tim glidewell/i,
+  /tim glidewell.*spatial.*(?:regional|account|manager)/i,
+  /spatial.*(?:regional|account|manager).*tim glidewell/i,
+  /^nice to e-?meet you\.?$/i,
+];
 
 function isGreetingLine(line: string): boolean {
   const trimmed = line.trim();
@@ -47,7 +53,10 @@ function extractAfterGreeting(line: string): string {
 
 function isTimIntroLine(line: string): boolean {
   const trimmed = line.trim();
-  return TIM_INTRO_PATTERN.test(trimmed) || I_AM_TIM_PATTERN.test(trimmed);
+  for (const pattern of TIM_INTRO_PATTERNS) {
+    if (pattern.test(trimmed)) return true;
+  }
+  return false;
 }
 
 function stripGreetingsAndIntro(body: string): { cleaned: string; preservedContent: string } {
@@ -56,8 +65,8 @@ function stripGreetingsAndIntro(body: string): { cleaned: string; preservedConte
   let foundContent = false;
   let preservedContent = "";
 
-  for (const line of lines) {
-    const trimmed = line.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
 
     if (!foundContent) {
       if (isGreetingLine(trimmed)) {
@@ -73,18 +82,23 @@ function stripGreetingsAndIntro(body: string): { cleaned: string; preservedConte
       foundContent = true;
     }
 
-    if (foundContent && isTimIntroLine(trimmed)) {
+    if (isTimIntroLine(trimmed)) {
       continue;
     }
 
-    if (foundContent && isGreetingLine(trimmed)) {
+    if (isGreetingLine(trimmed)) {
       continue;
     }
 
-    filtered.push(line);
+    filtered.push(lines[i]);
   }
 
-  return { cleaned: filtered.join("\n").trim(), preservedContent };
+  const cleaned = collapseTripleNewlines(filtered.join("\n").trim());
+  return { cleaned, preservedContent };
+}
+
+function collapseTripleNewlines(text: string): string {
+  return text.replace(/\n{3,}/g, "\n\n");
 }
 
 export function enforceIntroRules(sections: SequenceSections): SequenceSections {
