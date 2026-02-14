@@ -13,14 +13,14 @@ import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
 const MAX_CHARS = 50000;
 
-const SECTION_LABELS: Record<string, string> = {
-  email1: "Email 1",
-  email2: "Email 2",
-  linkedinConnection: "LinkedIn Connection",
-  linkedinMessage: "LinkedIn Message",
-  email3: "Email 3",
-  email4: "Email 4",
-};
+const SECTION_ORDER: { key: string; label: string }[] = [
+  { key: "email1", label: "Email 1" },
+  { key: "email2", label: "Email 2" },
+  { key: "linkedinConnection", label: "LinkedIn Connection" },
+  { key: "linkedinMessage", label: "LinkedIn Message" },
+  { key: "email3", label: "Email 3" },
+  { key: "email4", label: "Email 4" },
+];
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -198,9 +198,13 @@ export default function Home() {
       {result && (
         <div className="space-y-4" data-testid="section-output">
           <h2 className="text-lg font-semibold">Generated Output</h2>
-          {Object.entries(SECTION_LABELS).map(([key, label]) => {
+          {SECTION_ORDER.map(({ key, label }) => {
             const section = result.sections[key];
             if (!section) return null;
+            const isEmail1 = key === "email1";
+            const hasAttachments = isEmail1 && result.selectedAssets &&
+              (result.selectedAssets.documents.length > 0 || result.selectedAssets.image);
+
             return (
               <Card key={key} className="p-5 space-y-4" data-testid={`card-section-${key}`}>
                 <h3 className="font-semibold text-base">{label}</h3>
@@ -231,6 +235,26 @@ export default function Home() {
                     dangerouslySetInnerHTML={{ __html: formatBodyHtml(section.body) }}
                   />
                 </div>
+
+                {hasAttachments && result.selectedAssets && (
+                  <div className="space-y-1" data-testid="section-attachments">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Attachments</Label>
+                    <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
+                      {result.selectedAssets.image && (
+                        <div className="flex items-center gap-2" data-testid="text-attached-image">
+                          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span>Image: {result.selectedAssets.image}</span>
+                        </div>
+                      )}
+                      {result.selectedAssets.documents.map((doc, i) => (
+                        <div key={i} className="flex items-center gap-2" data-testid={`text-attached-doc-${i}`}>
+                          <span className="inline-block w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                          <span>{doc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Card>
             );
           })}

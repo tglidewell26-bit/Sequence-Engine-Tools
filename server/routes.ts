@@ -29,6 +29,42 @@ const updateSequenceSchema = z.object({
   name: z.string().optional(),
 });
 
+const REQUIRED_SECTIONS = ["email1", "email2", "linkedinConnection", "linkedinMessage", "email3", "email4"];
+
+const DEFAULT_SUBJECTS: Record<string, (instrument: string) => string> = {
+  email1: (inst) => `${inst} for Your Research`,
+  email2: (inst) => `Following Up — ${inst}`,
+  email3: (inst) => `New ${inst} Data Available`,
+  email4: (inst) => `Final Note — ${inst} Opportunity`,
+};
+
+function ensureAllSections(
+  sections: Record<string, { subject: string; body: string }>,
+  instrument: string
+): Record<string, { subject: string; body: string }> {
+  const result = { ...sections };
+
+  for (const key of REQUIRED_SECTIONS) {
+    if (!result[key]) {
+      const isLinkedIn = key.startsWith("linkedin");
+      result[key] = {
+        subject: "",
+        body: isLinkedIn ? "" : "",
+      };
+    }
+
+    if (!result[key].subject && key.startsWith("email")) {
+      const generator = DEFAULT_SUBJECTS[key];
+      result[key] = {
+        ...result[key],
+        subject: generator ? generator(instrument) : `${instrument} Spatial Biology`,
+      };
+    }
+  }
+
+  return result;
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -181,10 +217,12 @@ export async function registerRoutes(
 
       sections = await checkRedundancy(sections);
 
+      sections = ensureAllSections(sections, instrument);
+
       let selectedAssets = null;
       const allAssets = await storage.getAssets();
       if (allAssets.length > 0 && sections.email1) {
-        selectedAssets = await selectAssets(sections.email1.body, allAssets);
+        selectedAssets = await selectAssets(sections.email1.body, allAssets, instrument);
         sections = insertAssetsIntoEmail1(sections, selectedAssets);
       }
 

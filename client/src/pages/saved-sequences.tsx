@@ -29,14 +29,14 @@ import { Eye, Pencil, RotateCcw, Trash2, Copy, Check, FileText, Calendar } from 
 import type { Sequence, SequenceSections } from "@shared/schema";
 import { format } from "date-fns";
 
-const SECTION_LABELS: Record<string, string> = {
-  email1: "Email 1",
-  email2: "Email 2",
-  linkedinConnection: "LinkedIn Connection",
-  linkedinMessage: "LinkedIn Message",
-  email3: "Email 3",
-  email4: "Email 4",
-};
+const SECTION_ORDER: { key: string; label: string }[] = [
+  { key: "email1", label: "Email 1" },
+  { key: "email2", label: "Email 2" },
+  { key: "linkedinConnection", label: "LinkedIn Connection" },
+  { key: "linkedinMessage", label: "LinkedIn Message" },
+  { key: "email3", label: "Email 3" },
+  { key: "email4", label: "Email 4" },
+];
 
 function CopyBtn({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -75,7 +75,7 @@ function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
           <DialogTitle>{sequence.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
-          {Object.entries(SECTION_LABELS).map(([key, label]) => {
+          {SECTION_ORDER.map(({ key, label }) => {
             const section = sections[key];
             if (!section) return null;
             return (
@@ -152,7 +152,7 @@ function EditDialog({ sequence, open, onOpenChange }: EditDialogProps) {
           <DialogTitle>Edit: {sequence.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 mt-2">
-          {Object.entries(SECTION_LABELS).map(([key, label]) => {
+          {SECTION_ORDER.map(({ key, label }) => {
             const section = editSections[key];
             if (!section) return null;
             return (

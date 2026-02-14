@@ -23,7 +23,7 @@ export const sequences = pgTable("sequences", {
   availabilityWindow: text("availability_window"),
   timeRanges: text("time_ranges"),
   sections: jsonb("sections").$type<Record<string, { subject: string; body: string }>>().notNull(),
-  selectedAssets: jsonb("selected_assets").$type<{ image: string; documents: string[]; justificationSentence: string }>(),
+  selectedAssets: jsonb("selected_assets").$type<{ image: string; documents: string[]; justificationSentence: string; attachmentReference?: string }>(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -43,4 +43,4 @@ export type Sequence = typeof sequences.$inferSelect;
 export type InsertSequence = z.infer<typeof insertSequenceSchema>;
 
 export type SequenceSections = Record<string, { subject: string; body: string }>;
-export type SelectedAssets = { image: string; documents: string[]; justificationSentence: string };
+export type SelectedAssets = { image: string; documents: string[]; justificationSentence: string; attachmentReference?: string };

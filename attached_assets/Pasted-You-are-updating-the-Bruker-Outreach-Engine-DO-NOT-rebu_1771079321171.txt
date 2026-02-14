@@ -1,0 +1,166 @@
+You are updating the Bruker Outreach Engine.
+
+DO NOT rebuild the app. Modify existing logic to enforce stricter deterministic formatting and asset logic.
+
+The following improvements are required:
+
+1️⃣ Greeting Normalization Pass (MANDATORY)
+
+Before formatting each email:
+
+Remove all existing greetings from pasted input.
+
+Remove duplicate “Hi {{first_name}},” instances.
+
+Standardize all email openings to:
+
+Hello {{first_name}},
+
+My name is Tim Glidewell, and I'm the Spatial Regional Account Manager at Bruker Spatial Biology.
+
+This must appear exactly once at the top of every email.
+It must be two separate lines.
+
+Do not allow additional greeting variations.
+
+LinkedIn messages:
+
+Must begin with: Hi {{first_name}},
+
+No second intro line.
+
+2️⃣ Subject Parsing & UI Fix
+
+Each Email block must contain:
+
+SUBJECT (with copy button)
+BODY (with copy button)
+ATTACHMENTS (non-copy section)
+
+If no subject exists in pasted sequence:
+
+Generate one under 40 characters
+
+Platform aligned
+
+Pain-point driven
+
+No fluff
+
+Subject must be separate from body in UI.
+
+3️⃣ Asset Ranking Engine Upgrade
+
+When selecting assets:
+
+Score assets based on:
+
++3 Instrument match
++2 Disease/model match
++2 Biological angle match
++1 Technical differentiator match
+-5 If MultiPlatform when platform-specific exists
+-10 If LinkedIn
+
+Select:
+
+Exactly 1 image for Email 1
+
+1–2 attachments under 5MB combined
+
+Email 2–4: Only add attachments if credibility increases
+
+LinkedIn:
+
+Never include assets.
+
+4️⃣ Contextual Asset Injection
+
+When inserting image:
+
+Place image AFTER pain paragraph and BEFORE solution paragraph.
+
+Add contextual sentence:
+
+“Below is an example demonstrating [biological angle] at [technical strength]:”
+
+Then show:
+Image: [filename]
+
+Do not use “Example of capabilities.”
+
+5️⃣ Attachment Referencing Logic
+
+If attachments are selected:
+
+Add 1 sentence in body:
+
+“I’ve also attached [brief description] which outlines [specific technical value].”
+
+Descriptions must be derived from stored asset summaries.
+
+Then list at bottom:
+
+Attachments:
+
+ExactFileName1.pdf
+
+ExactFileName2.pdf
+
+No invented names.
+
+6️⃣ Platform Link Enforcement
+
+Auto-link instrument names:
+
+CellScape → https://brukerspatialbiology.com/
+
+CosMx → https://nanostring.com/products/cosmx-spatial-molecular-imager/single-cell-imaging-overview/
+
+GeoMx → https://nanostring.com/products/geomx-digital-spatial-profiler/geomx-dsp-overview/
+
+Only link first occurrence in each email.
+
+7️⃣ Deterministic Output Structure
+
+Each generated sequence must contain exactly:
+
+Email 1
+Email 2
+LinkedIn Connection
+LinkedIn Message
+Email 3
+Email 4
+
+Each section visually separated.
+Each subject + body copyable individually.
+
+8️⃣ Token Safety
+
+Ensure sequence paste box supports 50,000+ characters.
+
+LLM call should only receive:
+
+Sequence text
+
+Asset metadata (not full PDFs)
+
+Never resend full documents.
+
+9️⃣ Saved Sequence Behavior
+
+In Saved Sequences tab:
+
+Each section must allow:
+
+Edit
+
+Regenerate
+
+Copy
+
+Rerun full sequence
+
+Do not change UI styling.
+Modify logic only.
+Preserve current working features.

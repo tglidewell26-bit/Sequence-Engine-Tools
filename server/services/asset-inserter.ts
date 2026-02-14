@@ -11,27 +11,70 @@ export function insertAssetsIntoEmail1(
 
   if (selectedAssets.image) {
     const paragraphs = body.split("\n\n");
-    let insertIndex = 1;
+    let painIndex = -1;
+    let solutionIndex = -1;
 
     for (let i = 0; i < paragraphs.length; i++) {
       const lower = paragraphs[i].toLowerCase();
-      if (
+      if (painIndex === -1 && (
+        lower.includes("challenge") ||
+        lower.includes("struggle") ||
+        lower.includes("difficult") ||
+        lower.includes("pain") ||
+        lower.includes("problem") ||
+        lower.includes("limitation") ||
+        lower.includes("wanted to reach out") ||
+        lower.includes("your research") ||
+        lower.includes("your work") ||
+        lower.includes("your lab")
+      )) {
+        painIndex = i;
+      }
+
+      if (painIndex >= 0 && i > painIndex && solutionIndex === -1 && (
         lower.includes("geomx") ||
         lower.includes("cosmx") ||
         lower.includes("cellscape") ||
-        lower.includes("spatial")
-      ) {
-        insertIndex = i + 1;
-        break;
+        lower.includes("spatial") ||
+        lower.includes("platform") ||
+        lower.includes("solution") ||
+        lower.includes("enable") ||
+        lower.includes("profil")
+      )) {
+        solutionIndex = i;
       }
     }
 
-    const imageBlock = `\nExample of spatial profiling capabilities:\n[Insert Image: ${selectedAssets.image}]\n`;
+    let insertIndex: number;
+    if (painIndex >= 0 && solutionIndex > painIndex) {
+      insertIndex = solutionIndex;
+    } else if (painIndex >= 0) {
+      insertIndex = painIndex + 1;
+    } else {
+      for (let i = 0; i < paragraphs.length; i++) {
+        const lower = paragraphs[i].toLowerCase();
+        if (
+          lower.includes("geomx") ||
+          lower.includes("cosmx") ||
+          lower.includes("cellscape") ||
+          lower.includes("spatial")
+        ) {
+          insertIndex = i + 1;
+          break;
+        }
+      }
+      insertIndex = insertIndex! ?? Math.min(2, paragraphs.length);
+    }
+
+    const justification = selectedAssets.justificationSentence ||
+      `Below is an example demonstrating spatial profiling capabilities:`;
+
+    const imageBlock = `${justification}\nImage: ${selectedAssets.image}`;
     paragraphs.splice(insertIndex, 0, imageBlock);
     body = paragraphs.join("\n\n");
   }
 
-  if (selectedAssets.documents.length > 0 || selectedAssets.justificationSentence) {
+  if (selectedAssets.documents.length > 0) {
     const lines = body.split("\n");
     let ctaIndex = lines.length;
 
@@ -44,7 +87,10 @@ export function insertAssetsIntoEmail1(
         lower.includes("thank you") ||
         lower.includes("thanks") ||
         lower.includes("looking forward") ||
-        lower.includes("let me know")
+        lower.includes("let me know") ||
+        lower.includes("best,") ||
+        lower === "tim" ||
+        lower === "tim glidewell"
       ) {
         ctaIndex = i;
         break;
@@ -52,14 +98,15 @@ export function insertAssetsIntoEmail1(
     }
 
     const attachBlock: string[] = [];
-    if (selectedAssets.justificationSentence) {
-      attachBlock.push("", selectedAssets.justificationSentence);
+
+    const attachRef = selectedAssets.attachmentReference;
+    if (attachRef) {
+      attachBlock.push("", attachRef);
     }
-    if (selectedAssets.documents.length > 0) {
-      attachBlock.push("", "Attachments:");
-      for (const doc of selectedAssets.documents) {
-        attachBlock.push(doc);
-      }
+
+    attachBlock.push("", "Attachments:");
+    for (const doc of selectedAssets.documents) {
+      attachBlock.push(doc);
     }
     attachBlock.push("");
 
