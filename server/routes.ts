@@ -10,7 +10,7 @@ import { enforceIntroRules, injectAvailability } from "./services/formatter";
 import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
-import { checkRedundancy } from "./services/redundancy-checker";
+// redundancy checker disabled — user's original wording is never rewritten
 import { insertAssetsIntoEmail1 } from "./services/asset-inserter";
 
 const generateSchema = z.object({
@@ -179,7 +179,7 @@ export async function registerRoutes(
         sections = injectAvailability(sections, availabilityWindow, timeRanges);
       }
 
-      sections = await checkRedundancy(sections);
+      // Redundancy check disabled — user's original wording is preserved as-is
 
       let selectedAssets = null;
       const allAssets = await storage.getAssets();

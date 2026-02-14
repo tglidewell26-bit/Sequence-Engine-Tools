@@ -47,10 +47,11 @@ export function insertAssetsIntoEmail1(
 
     let insertIndex: number;
     if (painIndex >= 0 && solutionIndex > painIndex) {
-      insertIndex = solutionIndex;
+      insertIndex = solutionIndex + 1;
     } else if (painIndex >= 0) {
       insertIndex = painIndex + 1;
     } else {
+      let foundInstrument = false;
       for (let i = 0; i < paragraphs.length; i++) {
         const lower = paragraphs[i].toLowerCase();
         if (
@@ -60,10 +61,14 @@ export function insertAssetsIntoEmail1(
           lower.includes("spatial")
         ) {
           insertIndex = i + 1;
+          foundInstrument = true;
           break;
         }
       }
-      insertIndex = insertIndex! ?? Math.min(2, paragraphs.length);
+      if (!foundInstrument) {
+        insertIndex = Math.min(2, paragraphs.length);
+      }
+      insertIndex = insertIndex!;
     }
 
     const imageBlock = `[Insert Image: ${selectedAssets.image}]`;

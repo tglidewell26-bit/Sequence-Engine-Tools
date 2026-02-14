@@ -16,13 +16,11 @@ A deterministic scientific outreach sequence compiler with LLM-assisted asset ma
 
 ## Generation Pipeline
 1. Parse raw input into 6 sections (Email 1-4, LinkedIn Connection, LinkedIn Message)
-2. Enforce intro rules (Hello {{first_name}}, + Tim Glidewell intro)
-3. Inject hyperlinks as HTML anchor tags (GeoMx, CosMx, CellScape, Bruker Spatial Biology → product URLs)
-4. Inject date/time availability
-5. Select assets via LLM (Email 1 only, mandatory for cold outreach)
-6. Insert image after first instrument paragraph
-7. Insert justification + attachments before CTA
-8. Redundancy check: if Email 3 & 4 are >70% similar, rewrite Email 4
+2. Inject hyperlinks as HTML anchor tags (GeoMx, CosMx, CellScape, Bruker Spatial Biology → product URLs)
+3. Inject date/time availability placeholders
+4. Select assets via LLM (Email 1 only)
+5. Insert image AFTER the instrument/solution paragraph
+6. Insert LLM-generated attachment reference sentence before CTA
 
 ## Project Structure
 ```
@@ -32,11 +30,11 @@ server/storage.ts         - Storage interface (DatabaseStorage)
 server/routes.ts          - API routes with multer file upload
 server/services/
   parser.ts               - Sequence parser (deterministic)
-  formatter.ts            - Intro enforcement & date injection (deterministic)
+  formatter.ts            - Date/time injection only (no text rewriting)
   link-injector.ts        - Hyperlink map injection (deterministic)
   asset-selector.ts       - LLM-powered asset selection
   asset-summarizer.ts     - LLM-powered PDF summarization
-  redundancy-checker.ts   - Similarity check + LLM rewrite
+  redundancy-checker.ts   - DISABLED — user's original wording is never rewritten
   asset-inserter.ts       - Image & attachment placement (deterministic)
 client/src/
   App.tsx                 - Tab-based navigation
@@ -57,8 +55,11 @@ client/src/
 - `DELETE /api/sequences/:id` - Delete sequence
 
 ## Rules (Hard-Coded)
+- NEVER modify user's original email wording — text is sacred, copied word-for-word
 - Never insert assets outside Email 1
 - Never insert assets into LinkedIn sections
-- Always enforce intro format on all emails
-- LLM calls isolated to asset-selector, asset-summarizer, redundancy-checker
-- All formatting logic is deterministic
+- Only the LLM-generated attachment reference sentence is new text added to the email
+- Images go AFTER the instrument/solution paragraph, not before
+- LLM calls isolated to asset-selector and asset-summarizer only
+- No redundancy rewriting — Email 4 stays as written even if similar to Email 3
+- All formatting logic is deterministic (links, dates, asset placement)
