@@ -17,7 +17,7 @@ A deterministic scientific outreach sequence compiler with LLM-assisted asset ma
 ## Generation Pipeline
 1. Parse raw input into 6 sections (Email 1-4, LinkedIn Connection, LinkedIn Message)
 2. Enforce intro rules (Hello {{first_name}}, + Tim Glidewell intro)
-3. Inject hyperlinks (GeoMx, CosMx, CellScape → product URLs)
+3. Inject hyperlinks as HTML anchor tags (GeoMx, CosMx, CellScape, Bruker Spatial Biology → product URLs)
 4. Inject date/time availability
 5. Select assets via LLM (Email 1 only, mandatory for cold outreach)
 6. Insert image after first instrument paragraph

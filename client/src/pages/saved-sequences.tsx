@@ -38,7 +38,46 @@ const SECTION_ORDER: { key: string; label: string }[] = [
   { key: "email4", label: "Email 4" },
 ];
 
-function CopyBtn({ text, label }: { text: string; label: string }) {
+function copyRichText(html: string, plainText: string): Promise<void> {
+  const htmlContent = html.replace(/\n/g, "<br>");
+  const blob = new Blob([htmlContent], { type: "text/html" });
+  const textBlob = new Blob([plainText], { type: "text/plain" });
+  const item = new ClipboardItem({ "text/html": blob, "text/plain": textBlob });
+  return navigator.clipboard.write([item]);
+}
+
+const TRUSTED_LINK_DOMAINS = [
+  "brukerspatialbiology.com",
+  "nanostring.com",
+];
+
+function isTrustedUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return TRUSTED_LINK_DOMAINS.some(d => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+
+function formatBodyHtml(body: string): string {
+  const linkPlaceholders: string[] = [];
+  let temp = body.replace(/<a\s+href="([^"]+)">([^<]+)<\/a>/g, (_match, url, text) => {
+    if (!isTrustedUrl(url)) return text;
+    const idx = linkPlaceholders.length;
+    const safeUrl = url.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    const safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    linkPlaceholders.push(`<a href="${safeUrl}" class="text-blue-600 dark:text-blue-400 underline" target="_blank" rel="noopener noreferrer">${safeText}</a>`);
+    return `__LINK_PLACEHOLDER_${idx}__`;
+  });
+  let html = temp.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  for (let i = 0; i < linkPlaceholders.length; i++) {
+    html = html.replace(`__LINK_PLACEHOLDER_${i}__`, linkPlaceholders[i]);
+  }
+  return html;
+}
+
+function CopyBtn({ text, label, isBody }: { text: string; label: string; isBody?: boolean }) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
@@ -47,7 +86,12 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
       size="icon"
       variant="ghost"
       onClick={async () => {
-        await navigator.clipboard.writeText(text);
+        if (isBody) {
+          const plainText = text.replace(/<a\s+href="[^"]*">([^<]*)<\/a>/g, "$1");
+          await copyRichText(text, plainText);
+        } else {
+          await navigator.clipboard.writeText(text);
+        }
         setCopied(true);
         toast({ title: `${label} copied` });
         setTimeout(() => setCopied(false), 2000);
@@ -95,11 +139,12 @@ function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">Body</span>
-                    <CopyBtn text={section.body} label={`${label} Body`} />
+                    <CopyBtn text={section.body} label={`${label} Body`} isBody />
                   </div>
-                  <div className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed">
-                    {section.body}
-                  </div>
+                  <div
+                    className="bg-muted/50 rounded-md p-3 text-sm whitespace-pre-wrap leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: formatBodyHtml(section.body) }}
+                  />
                 </div>
               </div>
             );
