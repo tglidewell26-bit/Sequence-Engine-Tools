@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Copy, Check, Sparkles, Pencil, Save } from "lucide-react";
+import { Loader2, Copy, Check, Sparkles, Pencil, Save, BookmarkPlus, BookmarkCheck } from "lucide-react";
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
 const MAX_CHARS = 50000;
@@ -64,7 +64,11 @@ function CopyButton({ text, label, isBody }: { text: string; label: string; isBo
 interface GenerateResult {
   sections: SequenceSections;
   selectedAssets: SelectedAssets | null;
-  sequenceId: number;
+  name: string;
+  instrument: string;
+  rawInput: string;
+  availabilityWindow?: string;
+  timeRanges?: string;
 }
 
 export default function Home() {
@@ -74,6 +78,7 @@ export default function Home() {
   const [timeRanges, setTimeRanges] = useState("");
   const [instrumentOverride, setInstrumentOverride] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
+  const [savedId, setSavedId] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
@@ -97,11 +102,35 @@ export default function Home() {
     },
     onSuccess: (data) => {
       setResult(data);
-      queryClient.invalidateQueries({ queryKey: ["/api/sequences"] });
-      toast({ title: "Sequence generated successfully" });
+      setSavedId(null);
+      toast({ title: "Sequence generated — review output and click Save when ready" });
     },
     onError: (err: Error) => {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!result) throw new Error("No sequence to save");
+      const res = await apiRequest("POST", "/api/sequences/save", {
+        name: result.name,
+        instrument: result.instrument,
+        rawInput: result.rawInput,
+        availabilityWindow: result.availabilityWindow,
+        timeRanges: result.timeRanges,
+        sections: result.sections,
+        selectedAssets: result.selectedAssets,
+      });
+      return res.json() as Promise<{ id: number }>;
+    },
+    onSuccess: (data) => {
+      setSavedId(data.id);
+      queryClient.invalidateQueries({ queryKey: ["/api/sequences"] });
+      toast({ title: "Sequence saved" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -213,7 +242,26 @@ export default function Home() {
 
       {result && (
         <div className="space-y-4" data-testid="section-output">
-          <h2 className="text-lg font-semibold">Generated Output</h2>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold">Generated Output</h2>
+            {savedId ? (
+              <Button variant="outline" disabled data-testid="button-saved">
+                <BookmarkCheck className="w-4 h-4 mr-2" /> Saved
+              </Button>
+            ) : (
+              <Button
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                data-testid="button-save-sequence"
+              >
+                {saveMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                ) : (
+                  <><BookmarkPlus className="w-4 h-4 mr-2" /> Save Sequence</>
+                )}
+              </Button>
+            )}
+          </div>
           {SECTION_ORDER.map(({ key, label }) => {
             const section = result.sections[key];
             if (!section) return null;
@@ -241,7 +289,7 @@ export default function Home() {
                     };
                   });
                 }}
-                sequenceId={result.sequenceId}
+                sequenceId={savedId}
               />
             );
           })}
@@ -266,7 +314,7 @@ function SectionCard({
   hasAttachments: boolean;
   selectedAssets: SelectedAssets | null;
   onUpdate: (field: "subject" | "body", value: string) => void;
-  sequenceId: number;
+  sequenceId: number | null;
 }) {
   const [editingSubject, setEditingSubject] = useState(false);
   const [editingBody, setEditingBody] = useState(false);
@@ -276,6 +324,7 @@ function SectionCard({
   const bodyEditRef = useRef<HTMLTextAreaElement>(null);
 
   const persistEdit = async (field: "subject" | "body", newVal: string) => {
+    if (!sequenceId) return;
     try {
       const res = await apiRequest("GET", `/api/sequences/${sequenceId}`);
       const seq = await res.json();

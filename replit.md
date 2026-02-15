@@ -50,7 +50,8 @@ client/src/
 - `DELETE /api/assets/:id` - Delete asset
 - `GET /api/sequences` - List all sequences
 - `GET /api/sequences/:id` - Get single sequence
-- `POST /api/sequences/generate` - Generate formatted sequence
+- `POST /api/sequences/generate` - Generate formatted sequence (does NOT save)
+- `POST /api/sequences/save` - Save a generated sequence to the database
 - `PATCH /api/sequences/:id` - Update sequence sections
 - `DELETE /api/sequences/:id` - Delete sequence
 

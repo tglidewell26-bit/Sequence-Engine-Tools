@@ -188,6 +188,24 @@ export async function registerRoutes(
         sections = insertAssetsIntoEmail1(sections, selectedAssets);
       }
 
+      res.json({
+        sections,
+        selectedAssets,
+        name: name || "Untitled Sequence",
+        instrument,
+        rawInput,
+        availabilityWindow,
+        timeRanges,
+      });
+    } catch (error: any) {
+      console.error("Generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sequences/save", async (req, res) => {
+    try {
+      const { name, instrument, rawInput, availabilityWindow, timeRanges, sections, selectedAssets } = req.body;
       const sequence = await storage.createSequence({
         name: name || "Untitled Sequence",
         instrument,
@@ -197,14 +215,9 @@ export async function registerRoutes(
         sections,
         selectedAssets,
       });
-
-      res.json({
-        sections,
-        selectedAssets,
-        sequenceId: sequence.id,
-      });
+      res.json(sequence);
     } catch (error: any) {
-      console.error("Generation error:", error);
+      console.error("Save error:", error);
       res.status(500).json({ error: error.message });
     }
   });
