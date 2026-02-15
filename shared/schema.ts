@@ -24,6 +24,7 @@ export const sequences = pgTable("sequences", {
   timeRanges: text("time_ranges"),
   sections: jsonb("sections").$type<Record<string, { subject: string; body: string }>>().notNull(),
   selectedAssets: jsonb("selected_assets").$type<{ image: string; documents: string[]; justificationSentence: string; attachmentReference?: string }>(),
+  selectedAssetsEmail2: jsonb("selected_assets_email2").$type<{ image: string; documents: string[]; justificationSentence: string; attachmentReference?: string }>(),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

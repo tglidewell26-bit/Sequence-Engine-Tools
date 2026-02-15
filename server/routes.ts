@@ -11,7 +11,7 @@ import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
 // redundancy checker disabled — user's original wording is never rewritten
-import { insertAssetsIntoEmail1 } from "./services/asset-inserter";
+import { insertAssetsIntoEmail } from "./services/asset-inserter";
 
 const generateSchema = z.object({
   rawInput: z.string().min(1, "Sequence content is required").max(50000),
@@ -182,15 +182,28 @@ export async function registerRoutes(
       // Redundancy check disabled — user's original wording is preserved as-is
 
       let selectedAssets = null;
+      let selectedAssetsEmail2 = null;
       const allAssets = await storage.getAssets();
+
       if (allAssets.length > 0 && sections.email1) {
         selectedAssets = await selectAssets(sections.email1.body, allAssets, instrument);
-        sections = insertAssetsIntoEmail1(sections, selectedAssets);
+        sections = insertAssetsIntoEmail(sections, selectedAssets, "email1");
+      }
+
+      if (allAssets.length > 0 && sections.email2) {
+        const email1UsedFiles: string[] = [];
+        if (selectedAssets) {
+          if (selectedAssets.image) email1UsedFiles.push(selectedAssets.image);
+          email1UsedFiles.push(...selectedAssets.documents);
+        }
+        selectedAssetsEmail2 = await selectAssets(sections.email2.body, allAssets, instrument, email1UsedFiles);
+        sections = insertAssetsIntoEmail(sections, selectedAssetsEmail2, "email2");
       }
 
       res.json({
         sections,
         selectedAssets,
+        selectedAssetsEmail2,
         name: name || "Untitled Sequence",
         instrument,
         rawInput,
@@ -205,7 +218,7 @@ export async function registerRoutes(
 
   app.post("/api/sequences/save", async (req, res) => {
     try {
-      const { name, instrument, rawInput, availabilityWindow, timeRanges, sections, selectedAssets } = req.body;
+      const { name, instrument, rawInput, availabilityWindow, timeRanges, sections, selectedAssets, selectedAssetsEmail2 } = req.body;
       const sequence = await storage.createSequence({
         name: name || "Untitled Sequence",
         instrument,
@@ -214,6 +227,7 @@ export async function registerRoutes(
         timeRanges,
         sections,
         selectedAssets,
+        selectedAssetsEmail2,
       });
       res.json(sequence);
     } catch (error: any) {

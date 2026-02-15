@@ -1,13 +1,14 @@
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
-export function insertAssetsIntoEmail1(
+export function insertAssetsIntoEmail(
   sections: SequenceSections,
-  selectedAssets: SelectedAssets | null
+  selectedAssets: SelectedAssets | null,
+  emailKey: string = "email1"
 ): SequenceSections {
-  if (!selectedAssets || !sections.email1) return sections;
+  if (!selectedAssets || !sections[emailKey]) return sections;
 
   const result = { ...sections };
-  let body = result.email1.body;
+  let body = result[emailKey].body;
 
   if (selectedAssets.image) {
     const paragraphs = body.split("\n\n");
@@ -102,6 +103,6 @@ export function insertAssetsIntoEmail1(
     body = lines.join("\n");
   }
 
-  result.email1 = { ...result.email1, body };
+  result[emailKey] = { ...result[emailKey], body };
   return result;
 }

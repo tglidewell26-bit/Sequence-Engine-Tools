@@ -52,10 +52,12 @@ function scoreAsset(asset: Asset, emailBody: string, detectedInstrument: string)
 export async function selectAssets(
   emailBody: string,
   assets: Asset[],
-  detectedInstrument: string = "GeoMx"
+  detectedInstrument: string = "GeoMx",
+  excludeFileNames: string[] = []
 ): Promise<SelectedAssets> {
-  const images = assets.filter((a) => a.type === "Image");
-  const documents = assets.filter((a) => a.type === "Document");
+  const excluded = new Set(excludeFileNames);
+  const images = assets.filter((a) => a.type === "Image" && !excluded.has(a.fileName));
+  const documents = assets.filter((a) => a.type === "Document" && !excluded.has(a.fileName));
 
   if (images.length === 0 && documents.length === 0) {
     return { image: "", documents: [], justificationSentence: "" };

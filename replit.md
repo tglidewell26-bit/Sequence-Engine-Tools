@@ -18,9 +18,10 @@ A deterministic scientific outreach sequence compiler with LLM-assisted asset ma
 1. Parse raw input into 6 sections (Email 1-4, LinkedIn Connection, LinkedIn Message)
 2. Inject hyperlinks as HTML anchor tags (GeoMx, CosMx, CellScape, Bruker Spatial Biology → product URLs)
 3. Inject date/time availability placeholders
-4. Select assets via LLM (Email 1 only)
-5. Insert image AFTER the instrument/solution paragraph
-6. Insert LLM-generated attachment reference sentence before CTA
+4. Select assets via LLM for Email 1
+5. Select assets via LLM for Email 2 (excluding Email 1's assets)
+6. Insert image AFTER the instrument/solution paragraph in both emails
+7. Insert LLM-generated attachment reference sentence before CTA in both emails
 
 ## Project Structure
 ```
@@ -57,8 +58,8 @@ client/src/
 
 ## Rules (Hard-Coded)
 - NEVER modify user's original email wording — text is sacred, copied word-for-word
-- Never insert assets outside Email 1
-- Never insert assets into LinkedIn sections
+- Assets are inserted into Email 1 and Email 2 only (each gets unique assets)
+- Never insert assets into LinkedIn sections or Email 3/4
 - Only the LLM-generated attachment reference sentence is new text added to the email
 - Images go AFTER the instrument/solution paragraph, not before
 - LLM calls isolated to asset-selector and asset-summarizer only

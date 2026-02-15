@@ -64,6 +64,7 @@ function CopyButton({ text, label, isBody }: { text: string; label: string; isBo
 interface GenerateResult {
   sections: SequenceSections;
   selectedAssets: SelectedAssets | null;
+  selectedAssetsEmail2: SelectedAssets | null;
   name: string;
   instrument: string;
   rawInput: string;
@@ -121,6 +122,7 @@ export default function Home() {
         timeRanges: result.timeRanges,
         sections: result.sections,
         selectedAssets: result.selectedAssets,
+        selectedAssetsEmail2: result.selectedAssetsEmail2,
       });
       return res.json() as Promise<{ id: number }>;
     },
@@ -265,9 +267,11 @@ export default function Home() {
           {SECTION_ORDER.map(({ key, label }) => {
             const section = result.sections[key];
             if (!section) return null;
-            const isEmail1 = key === "email1";
-            const hasAttachments = isEmail1 && result.selectedAssets &&
-              (result.selectedAssets.documents.length > 0 || result.selectedAssets.image);
+            const emailAssets = key === "email1" ? result.selectedAssets
+              : key === "email2" ? result.selectedAssetsEmail2
+              : null;
+            const hasAttachments = !!emailAssets &&
+              (emailAssets.documents.length > 0 || !!emailAssets.image);
 
             return (
               <SectionCard
@@ -275,8 +279,8 @@ export default function Home() {
                 sectionKey={key}
                 label={label}
                 section={section}
-                hasAttachments={!!hasAttachments}
-                selectedAssets={result.selectedAssets}
+                hasAttachments={hasAttachments}
+                selectedAssets={emailAssets}
                 onUpdate={(field, value) => {
                   setResult(prev => {
                     if (!prev) return prev;
