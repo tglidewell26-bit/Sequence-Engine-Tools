@@ -191,12 +191,12 @@ function parseSequenceOutput(text: string): SequenceSections {
   const sections: SequenceSections = {};
 
   const sectionPatterns: { key: string; pattern: RegExp }[] = [
-    { key: "email1", pattern: /Email\s*1\b/i },
-    { key: "email2", pattern: /Email\s*2\b/i },
-    { key: "linkedinConnection", pattern: /LinkedIn\s*Connection\s*Request/i },
-    { key: "linkedinMessage", pattern: /LinkedIn\s*Message/i },
-    { key: "email3", pattern: /Email\s*3\b/i },
-    { key: "email4", pattern: /Email\s*4\b/i },
+    { key: "email1", pattern: /(?:\*{0,2}#{0,3}\s*)?Email\s*1(?:\s*[—–\-:])?\s*(?:Recognition|Permission)?/i },
+    { key: "email2", pattern: /(?:\*{0,2}#{0,3}\s*)?Email\s*2(?:\s*[—–\-:])?\s*(?:Escalation)?/i },
+    { key: "linkedinConnection", pattern: /(?:\*{0,2}#{0,3}\s*)?LinkedIn\s*Connection\s*Request/i },
+    { key: "linkedinMessage", pattern: /(?:\*{0,2}#{0,3}\s*)?LinkedIn\s*Message/i },
+    { key: "email3", pattern: /(?:\*{0,2}#{0,3}\s*)?Email\s*3(?:\s*[—–\-:])?\s*(?:Clarity)?/i },
+    { key: "email4", pattern: /(?:\*{0,2}#{0,3}\s*)?Email\s*4(?:\s*[—–\-:])?\s*(?:Respectful|Exit)?/i },
   ];
 
   const sectionStarts: { key: string; index: number }[] = [];
@@ -216,27 +216,28 @@ function parseSequenceOutput(text: string): SequenceSections {
     const rawBlock = text.slice(start.index, end).trim();
 
     const lines = rawBlock.split("\n");
-    let headerEnd = 0;
-    for (let j = 0; j < lines.length; j++) {
-      if (lines[j].trim() === "") {
-        headerEnd = j + 1;
+
+    let contentStartIdx = 1;
+    for (let j = 0; j < Math.min(lines.length, 3); j++) {
+      if (sectionPatterns.some(sp => sp.pattern.test(lines[j].trim()))) {
+        contentStartIdx = j + 1;
+        if (contentStartIdx < lines.length && lines[contentStartIdx].trim() === "") {
+          contentStartIdx++;
+        }
         break;
-      }
-      if (j === 0) {
-        headerEnd = 1;
       }
     }
 
-    const contentLines = lines.slice(headerEnd);
+    const contentLines = lines.slice(contentStartIdx);
     const content = contentLines.join("\n").trim();
 
     let subject = "";
     let body = content;
 
-    const subjectMatch = content.match(/^Subject:\s*(.+)/im);
+    const subjectMatch = content.match(/^\*{0,2}Subject:\*{0,2}\s*(.+)/im);
     if (subjectMatch) {
-      subject = subjectMatch[1].trim();
-      body = content.replace(/^Subject:\s*.+\n*/im, "").trim();
+      subject = subjectMatch[1].trim().replace(/^\*{1,2}/, "").replace(/\*{1,2}$/, "");
+      body = content.replace(/^\*{0,2}Subject:\*{0,2}\s*.+\n*/im, "").trim();
     }
 
     sections[start.key] = { subject, body };
@@ -281,5 +282,9 @@ export async function generateSequence(
     throw new Error("No response from OpenAI API");
   }
 
-  return parseSequenceOutput(content);
+  console.log("GPT-5.2 raw output (first 500 chars):", content.slice(0, 500));
+  const parsed = parseSequenceOutput(content);
+  const parsedSubjects = Object.entries(parsed).map(([k, v]) => `${k}: "${v.subject}"`).join(", ");
+  console.log("Parsed subjects:", parsedSubjects);
+  return parsed;
 }
