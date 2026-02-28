@@ -5,20 +5,20 @@ import path from "path";
 import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
-import { parseSequence, detectInstrument } from "./services/parser";
-import { enforceIntroRules, injectAvailability } from "./services/formatter";
+import { detectInstrument } from "./services/parser";
+import { injectAvailability } from "./services/formatter";
 import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
-// redundancy checker disabled — user's original wording is never rewritten
 import { insertAssetsIntoEmail } from "./services/asset-inserter";
+import { researchCompany } from "./services/perplexity-research";
+import { generateSequence } from "./services/sequence-generator";
+import { extractKeywords, filterAssetsByKeywords } from "./services/keyword-matcher";
 
 const generateSchema = z.object({
-  rawInput: z.string().min(1, "Sequence content is required").max(50000),
+  leadIntel: z.string().min(1, "Lead intel is required").max(50000),
   name: z.string().optional(),
-  availabilityWindow: z.string().optional(),
-  timeRanges: z.string().optional(),
-  instrumentOverride: z.string().optional(),
+  availabilityBlock: z.string().optional(),
 });
 
 const updateSequenceSchema = z.object({
@@ -164,39 +164,46 @@ export async function registerRoutes(
       if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
       }
-      const { rawInput, name, availabilityWindow, timeRanges, instrumentOverride } = parseResult.data;
+      const { leadIntel, name, availabilityBlock } = parseResult.data;
 
-      let sections = parseSequence(rawInput);
+      console.log("Step 1: Calling Perplexity for company research...");
+      const researchBrief = await researchCompany(leadIntel);
+      console.log("Step 1 complete: Research brief received");
 
-      const instrument = instrumentOverride && instrumentOverride !== "auto"
-        ? instrumentOverride
-        : detectInstrument(rawInput);
+      console.log("Step 2: Calling OpenAI for sequence generation...");
+      let sections = await generateSequence(leadIntel, researchBrief, availabilityBlock);
+      console.log("Step 2 complete: Sequence generated");
 
-      sections = enforceIntroRules(sections);
       sections = injectLinksInSections(sections);
 
-      if (availabilityWindow || timeRanges) {
-        sections = injectAvailability(sections, availabilityWindow, timeRanges);
+      if (availabilityBlock && availabilityBlock.trim()) {
+        sections = injectAvailability(sections, availabilityBlock.trim());
       }
 
-      // Redundancy check disabled — user's original wording is preserved as-is
+      const allSectionText = Object.values(sections).map(s => `${s.subject} ${s.body}`).join(" ");
+      const instrument = detectInstrument(allSectionText);
+
+      const keywords = extractKeywords(leadIntel, researchBrief);
+      console.log(`Extracted ${keywords.length} keywords for asset matching`);
 
       let selectedAssets = null;
       let selectedAssetsEmail2 = null;
       const allAssets = await storage.getAssets();
+      const filteredAssets = filterAssetsByKeywords(allAssets, keywords);
+      console.log(`Filtered assets: ${filteredAssets.length} of ${allAssets.length} match keywords`);
 
-      if (allAssets.length > 0 && sections.email1) {
-        selectedAssets = await selectAssets(sections.email1.body, allAssets, instrument);
+      if (filteredAssets.length > 0 && sections.email1) {
+        selectedAssets = await selectAssets(sections.email1.body, filteredAssets, instrument);
         sections = insertAssetsIntoEmail(sections, selectedAssets, "email1");
       }
 
-      if (allAssets.length > 0 && sections.email2) {
+      if (filteredAssets.length > 0 && sections.email2) {
         const email1UsedFiles: string[] = [];
         if (selectedAssets) {
           if (selectedAssets.image) email1UsedFiles.push(selectedAssets.image);
           email1UsedFiles.push(...selectedAssets.documents);
         }
-        selectedAssetsEmail2 = await selectAssets(sections.email2.body, allAssets, instrument, email1UsedFiles);
+        selectedAssetsEmail2 = await selectAssets(sections.email2.body, filteredAssets, instrument, email1UsedFiles);
         sections = insertAssetsIntoEmail(sections, selectedAssetsEmail2, "email2");
       }
 
@@ -206,9 +213,8 @@ export async function registerRoutes(
         selectedAssetsEmail2,
         name: name || "Untitled Sequence",
         instrument,
-        rawInput,
-        availabilityWindow,
-        timeRanges,
+        rawInput: leadIntel,
+        researchBrief,
       });
     } catch (error: any) {
       console.error("Generation error:", error);
@@ -218,13 +224,12 @@ export async function registerRoutes(
 
   app.post("/api/sequences/save", async (req, res) => {
     try {
-      const { name, instrument, rawInput, availabilityWindow, timeRanges, sections, selectedAssets, selectedAssetsEmail2 } = req.body;
+      const { name, instrument, rawInput, researchBrief, sections, selectedAssets, selectedAssetsEmail2 } = req.body;
       const sequence = await storage.createSequence({
         name: name || "Untitled Sequence",
         instrument,
         rawInput,
-        availabilityWindow,
-        timeRanges,
+        researchBrief,
         sections,
         selectedAssets,
         selectedAssetsEmail2,

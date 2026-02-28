@@ -22,6 +22,7 @@ export const sequences = pgTable("sequences", {
   rawInput: text("raw_input").notNull(),
   availabilityWindow: text("availability_window"),
   timeRanges: text("time_ranges"),
+  researchBrief: text("research_brief"),
   sections: jsonb("sections").$type<Record<string, { subject: string; body: string }>>().notNull(),
   selectedAssets: jsonb("selected_assets").$type<{ image: string; documents: string[]; justificationSentence: string; attachmentReference?: string }>(),
   selectedAssetsEmail2: jsonb("selected_assets_email2").$type<{ image: string; documents: string[]; justificationSentence: string; attachmentReference?: string }>(),

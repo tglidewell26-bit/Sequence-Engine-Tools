@@ -6,9 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Copy, Check, Sparkles, Pencil, Save, BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { Loader2, Copy, Check, Sparkles, Pencil, Save, BookmarkPlus, BookmarkCheck, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
 
 const MAX_CHARS = 50000;
@@ -68,18 +67,16 @@ interface GenerateResult {
   name: string;
   instrument: string;
   rawInput: string;
-  availabilityWindow?: string;
-  timeRanges?: string;
+  researchBrief?: string;
 }
 
 export default function Home() {
-  const [rawInput, setRawInput] = useState("");
+  const [leadIntel, setLeadIntel] = useState("");
   const [sequenceName, setSequenceName] = useState("");
-  const [availabilityWindow, setAvailabilityWindow] = useState("");
-  const [timeRanges, setTimeRanges] = useState("");
-  const [instrumentOverride, setInstrumentOverride] = useState("");
+  const [availabilityBlock, setAvailabilityBlock] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [savedId, setSavedId] = useState<number | null>(null);
+  const [briefExpanded, setBriefExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
@@ -88,22 +85,21 @@ export default function Home() {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.max(200, textareaRef.current.scrollHeight)}px`;
     }
-  }, [rawInput]);
+  }, [leadIntel]);
 
   const generateMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/sequences/generate", {
-        rawInput,
+        leadIntel,
         name: sequenceName || "Untitled Sequence",
-        availabilityWindow: availabilityWindow.trim() || undefined,
-        timeRanges: timeRanges.trim() || undefined,
-        instrumentOverride: instrumentOverride || undefined,
+        availabilityBlock: availabilityBlock.trim() || undefined,
       });
       return res.json() as Promise<GenerateResult>;
     },
     onSuccess: (data) => {
       setResult(data);
       setSavedId(null);
+      setBriefExpanded(true);
       toast({ title: "Sequence generated — review output and click Save when ready" });
     },
     onError: (err: Error) => {
@@ -118,8 +114,7 @@ export default function Home() {
         name: result.name,
         instrument: result.instrument,
         rawInput: result.rawInput,
-        availabilityWindow: result.availabilityWindow,
-        timeRanges: result.timeRanges,
+        researchBrief: result.researchBrief,
         sections: result.sections,
         selectedAssets: result.selectedAssets,
         selectedAssetsEmail2: result.selectedAssetsEmail2,
@@ -136,7 +131,7 @@ export default function Home() {
     },
   });
 
-  const charCount = rawInput.length;
+  const charCount = leadIntel.length;
   const charPercent = (charCount / MAX_CHARS) * 100;
 
   return (
@@ -144,7 +139,7 @@ export default function Home() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Create Sequence</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Paste your full 6-part outreach sequence below. The engine will parse, format, inject links, insert assets, and produce copy-ready output.
+          Paste your lead data from Google Sheets. The engine will research the company, generate a tailored outreach sequence, inject links, insert assets, and produce copy-ready output.
         </p>
       </div>
 
@@ -153,7 +148,7 @@ export default function Home() {
           <Label htmlFor="sequence-name">Sequence Name</Label>
           <Input
             id="sequence-name"
-            placeholder="e.g. Q1 GeoMx Oncology Outreach"
+            placeholder="e.g. Q1 Vir Biotechnology CosMx Outreach"
             value={sequenceName}
             onChange={(e) => setSequenceName(e.target.value)}
             data-testid="input-sequence-name"
@@ -162,7 +157,7 @@ export default function Home() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <Label htmlFor="raw-input">Sequence Content</Label>
+            <Label htmlFor="lead-intel">Lead Intel</Label>
             <span
               className={`text-xs tabular-nums ${charPercent > 90 ? "text-destructive" : "text-muted-foreground"}`}
               data-testid="text-char-count"
@@ -172,67 +167,40 @@ export default function Home() {
           </div>
           <textarea
             ref={textareaRef}
-            id="raw-input"
+            id="lead-intel"
             className="flex w-full rounded-md border border-input bg-background text-foreground text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none min-h-[200px] p-3"
-            placeholder={`Paste your full sequence here...\n\nEmail 1\nSubject: ...\nBody: ...\n\nEmail 2\nSubject: ...\nBody: ...\n\nLinkedIn Connection\n...\n\nLinkedIn Message\n...\n\nEmail 3\nSubject: ...\nBody: ...\n\nEmail 4\nSubject: ...\nBody: ...`}
-            value={rawInput}
+            placeholder="Paste your lead data row from Google Sheets here...&#10;&#10;This should include: company name, website, location, overview, deal info, instrument focus, fit notes, and any other intel from your tracking sheet."
+            value={leadIntel}
             onChange={(e) => {
-              if (e.target.value.length <= MAX_CHARS) setRawInput(e.target.value);
+              if (e.target.value.length <= MAX_CHARS) setLeadIntel(e.target.value);
             }}
             maxLength={MAX_CHARS}
-            data-testid="input-raw-sequence"
+            data-testid="input-lead-intel"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="availability-window">Availability Window</Label>
-          <Input
-            id="availability-window"
-            placeholder="e.g. the week of March 3rd, or March 3–7"
-            value={availabilityWindow}
-            onChange={(e) => setAvailabilityWindow(e.target.value)}
-            data-testid="input-availability-window"
-          />
-          <p className="text-xs text-muted-foreground">When you're available to meet. Gets injected into your emails as-is.</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="time-ranges">Time Ranges</Label>
+          <Label htmlFor="availability-block">Availability Block</Label>
           <Textarea
-            id="time-ranges"
-            placeholder={"e.g. 10am–4pm\nor: 10am–1pm, 2pm–3pm\nor one per line for multiple days"}
-            value={timeRanges}
-            onChange={(e) => setTimeRanges(e.target.value)}
-            className="min-h-[60px] resize-none"
-            data-testid="input-time-ranges"
+            id="availability-block"
+            placeholder={"e.g. I'll be in the South San Francisco area the week of March 10th.\n\nAvailable times:\nMonday 10am–4pm\nTuesday 10am–1pm\nWednesday 2pm–4pm"}
+            value={availabilityBlock}
+            onChange={(e) => setAvailabilityBlock(e.target.value)}
+            className="min-h-[80px] resize-none"
+            data-testid="input-availability-block"
           />
-          <p className="text-xs text-muted-foreground">Type your available times however feels natural. Each line becomes a separate entry.</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Instrument Override (optional)</Label>
-          <Select value={instrumentOverride} onValueChange={setInstrumentOverride}>
-            <SelectTrigger data-testid="select-instrument-override">
-              <SelectValue placeholder="Auto-detect from content" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">Auto-detect</SelectItem>
-              <SelectItem value="GeoMx">GeoMx</SelectItem>
-              <SelectItem value="CosMx">CosMx</SelectItem>
-              <SelectItem value="CellScape">CellScape</SelectItem>
-            </SelectContent>
-          </Select>
+          <p className="text-xs text-muted-foreground">Your meeting availability. Gets injected into emails 1–3 where the availability placeholder appears.</p>
         </div>
 
         <Button
           className="w-full"
           onClick={() => generateMutation.mutate()}
-          disabled={!rawInput.trim() || generateMutation.isPending}
+          disabled={!leadIntel.trim() || generateMutation.isPending}
           data-testid="button-generate"
         >
           {generateMutation.isPending ? (
             <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Researching & Generating...
             </>
           ) : (
             <>
@@ -241,6 +209,27 @@ export default function Home() {
           )}
         </Button>
       </Card>
+
+      {result && result.researchBrief && (
+        <Card className="p-5" data-testid="card-research-brief">
+          <button
+            className="w-full flex items-center justify-between gap-2 text-left"
+            onClick={() => setBriefExpanded(!briefExpanded)}
+            data-testid="button-toggle-research-brief"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold">Research Brief</h2>
+            </div>
+            {briefExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          {briefExpanded && (
+            <div className="mt-4 bg-muted/50 rounded-md p-4 text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-research-brief">
+              {result.researchBrief}
+            </div>
+          )}
+        </Card>
+      )}
 
       {result && (
         <div className="space-y-4" data-testid="section-output">
