@@ -1,0 +1,31 @@
+REPLIT PROMPT — Bruker Outreach Engine Overhaul
+
+I need you to overhaul the core generate functionality of this app. Do not change anything on the Saved Sequences page, the Knowledge Base page, the navigation, the theme, or the output display cards on the Home page. Only modify the backend generate route and the Home page input form.
+
+What the app currently does (to replace):
+The Home page has a textarea where the user pastes a pre-written 6-part outreach sequence. The backend parses, formats, and injects links into it. Replace this entire flow with the following.
+
+New input form (Home page only):
+Replace the large "paste your sequence here" textarea with a new textarea labeled "Lead Intel." This is where the user will paste a raw data row copied from a Google Sheet. It will look like a large block of mixed text containing: a date, company name, website, location, company description, funding amount, funding type, funding date, funding partner, instrument focus, a long intel paragraph, fit score, priority score, temperature rating, and a summary paragraph. Just treat the whole thing as a raw intelligence brief — do not try to parse individual columns. Keep all other existing input fields exactly where they are: Sequence Name, Availability Window, Time Ranges, and the Instrument Override dropdown.
+
+New backend generate route — two-step AI pipeline:
+
+Step 1 — Perplexity Research:
+Call the Perplexity Sonar API (it uses an OpenAI-compatible interface, just with a different base URL and API key). Send it the pasted lead intel. The system prompt should instruct it to act as a biotech business development analyst. Ask it to research the company using the provided data plus any public information it can find, and return a structured research brief covering: company status, research focus and pipeline, sample types and biomarker context, infrastructure fit, relevant technologies, recent signals (hiring, funding, publications), platform fit assessment (CosMx vs GeoMx vs CellScape), and an outreach brief that includes a pain hypothesis, a "why now" reason, a concrete spatial advantage, suggested angles for each email, and a credibility anchor. Store the Perplexity API key as a Replit Secret called PERPLEXITY_API_KEY and the base URL is https://api.perplexity.ai.
+
+Step 2 — OpenAI Sequence Generation:
+Take the original lead intel the user pasted plus the full Perplexity research output from Step 1, and send both to OpenAI (use gpt-4o as the model). The system prompt should instruct the model to write as Tim Glidewell, Spatial Regional Account Manager at Bruker Spatial Biology, covering the San Francisco Bay Area and Peninsula territory. Generate exactly 6 outreach pieces: Email 1, Email 2, a LinkedIn Connection Request, a LinkedIn Message, Email 3, and Email 4. Use only one platform per sequence (CosMx, GeoMx, or CellScape) — infer from the lead data unless the user has selected an override from the dropdown. Write at an 8th-grade reading level. Never use the word "demo" — instead say "visit," "stop by," or "connect in person." Never use hollow openers like "I hope this email finds you well," "touching base," "circling back," or "I wanted to reach out." Use {{first_name}} as a placeholder throughout wherever the contact's first name would appear. Emails 1, 2, and 3 must each end with this exact availability block using the actual values the user provided in the Availability Window and Time Ranges fields: "I am available on the following dates and times. [Availability Window] — [Time Ranges as bullet points] Let me know if you're available."
+
+Email structure rules:
+
+Email 1: Permission-seeking opener. One specific pain hypothesis tied to the company's research focus. One sentence naming the platform and what it solves. Meeting ask with availability block.
+Email 2: New angle, no repetition of Email 1. Question-driven. Reference something specific from the intel — funding, hiring, or publication area. End with availability block.
+LinkedIn Connection Request: One sentence only. No selling. Just a relevant professional reason to connect.
+LinkedIn Message: 2–3 sentences. Acknowledge the email outreach. Light value add. No hard ask.
+Email 3: More direct. Name a specific capability of the platform. Stronger language. Decision-forcing but not pushy. End with availability block.
+Email 4: Graceful exit. No new information. Leave the door open. No availability block.
+Return format:
+The backend should return the same JSON structure the frontend already expects: an object with keys email1, email2, linkedinConnection, linkedinMessage, email3, email4 — each containing a subject field (where applicable) and a body field. The frontend output cards, copy buttons, inline editing, and save to Saved Sequences all work correctly already and must not be changed.
+
+Dependencies:
+The OpenAI SDK is already installed. Perplexity uses the same SDK — just instantiate a second OpenAI client pointed at https://api.perplexity.ai with the PERPLEXITY_API_KEY secret. No new packages should be needed.
