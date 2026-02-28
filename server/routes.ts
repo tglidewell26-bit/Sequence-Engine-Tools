@@ -29,6 +29,14 @@ const updateSequenceSchema = z.object({
   name: z.string().optional(),
 });
 
+function parsePositiveInt(value: string): number | null {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -115,7 +123,8 @@ export async function registerRoutes(
 
   app.get("/api/assets/:id/download", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveInt(req.params.id);
+      if (id === null) return res.status(400).json({ error: "Invalid asset id" });
       const asset = await storage.getAsset(id);
       if (!asset) return res.status(404).json({ error: "Asset not found" });
       if (!fs.existsSync(asset.filePath)) return res.status(404).json({ error: "File not found" });
@@ -127,7 +136,8 @@ export async function registerRoutes(
 
   app.delete("/api/assets/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveInt(req.params.id);
+      if (id === null) return res.status(400).json({ error: "Invalid asset id" });
       const asset = await storage.getAsset(id);
       if (asset && fs.existsSync(asset.filePath)) {
         fs.unlinkSync(asset.filePath);
@@ -150,7 +160,9 @@ export async function registerRoutes(
 
   app.get("/api/sequences/:id", async (req, res) => {
     try {
-      const seq = await storage.getSequence(parseInt(req.params.id));
+      const id = parsePositiveInt(req.params.id);
+      if (id === null) return res.status(400).json({ error: "Invalid sequence id" });
+      const seq = await storage.getSequence(id);
       if (!seq) return res.status(404).json({ error: "Sequence not found" });
       res.json(seq);
     } catch (error: any) {
@@ -243,7 +255,8 @@ export async function registerRoutes(
 
   app.patch("/api/sequences/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = parsePositiveInt(req.params.id);
+      if (id === null) return res.status(400).json({ error: "Invalid sequence id" });
       const parseResult = updateSequenceSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
@@ -257,7 +270,9 @@ export async function registerRoutes(
 
   app.delete("/api/sequences/:id", async (req, res) => {
     try {
-      await storage.deleteSequence(parseInt(req.params.id));
+      const id = parsePositiveInt(req.params.id);
+      if (id === null) return res.status(400).json({ error: "Invalid sequence id" });
+      await storage.deleteSequence(id);
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
