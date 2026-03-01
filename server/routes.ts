@@ -21,6 +21,27 @@ const generateSchema = z.object({
   availabilityBlock: z.string().optional(),
 });
 
+function autoGenerateName(leadIntel: string): string {
+  const fields = leadIntel.split("\t");
+
+  let company = (fields[1] || "").trim();
+  company = company
+    .replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Co\.?|Incorporated|Limited|L\.?P\.?)$/i, "")
+    .trim();
+
+  let city = "";
+  const location = (fields[3] || "").trim();
+  if (location) {
+    const commaIdx = location.lastIndexOf(",");
+    city = commaIdx > 0 ? location.slice(0, commaIdx).trim() : location;
+  }
+
+  const instrument = (fields[12] || "").trim();
+
+  const parts = [company, city, instrument].filter(p => p.length > 0);
+  return parts.length > 0 ? parts.join(" ") : "Untitled Sequence";
+}
+
 const updateSequenceSchema = z.object({
   sections: z.record(z.object({
     subject: z.string(),
@@ -176,7 +197,8 @@ export async function registerRoutes(
       if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
       }
-      const { leadIntel, name, availabilityBlock } = parseResult.data;
+      const { leadIntel, availabilityBlock } = parseResult.data;
+      const name = parseResult.data.name?.trim() || autoGenerateName(leadIntel);
 
       console.log("Step 1: Calling Perplexity for company research...");
       const researchBrief = await researchCompany(leadIntel);

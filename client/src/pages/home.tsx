@@ -238,6 +238,9 @@ export default function Home() {
       setResult(data);
       setSavedId(null);
       setBriefExpanded(true);
+      if (!sequenceName.trim()) {
+        setSequenceName(data.name);
+      }
       toast({ title: "Sequence generated — review output and click Save when ready" });
     },
     onError: (err: Error) => {
@@ -286,7 +289,7 @@ export default function Home() {
           <Label htmlFor="sequence-name">Sequence Name</Label>
           <Input
             id="sequence-name"
-            placeholder="e.g. Q1 Vir Biotechnology CosMx Outreach"
+            placeholder="Auto-generated from lead intel (e.g. Vir Biotechnology South San Francisco CosMx)"
             value={sequenceName}
             onChange={(e) => setSequenceName(e.target.value)}
             data-testid="input-sequence-name"
