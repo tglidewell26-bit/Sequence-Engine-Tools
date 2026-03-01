@@ -251,6 +251,59 @@ Email 4
 Each email must include a Subject: line.
 No commentary before or after.`;
 
+const TIM_VOICE_REWRITE_PROMPT = `You are rewriting text so it sounds exactly like Tim Glidewell wrote it.
+
+This is a voice compression pass, not a content change.
+
+Rules for Tim’s voice:
+
+- Prefer asking questions over making statements
+- Speak as someone who sees patterns across many teams, not someone inside the lab
+- Use simple, direct language
+- Allow light repetition and imperfect phrasing
+- Do not explain technology unless explicitly asked
+- State at most one impressive, concrete fact per email, then stop
+- Remove stacked features, justifications, and explanatory clauses
+- Replace arguments or claims with questions when possible
+- Avoid marketing or presentation language
+- Tim is comfortable being blunt and direct
+- Tim is comfortable admitting when he does not understand something
+
+Rewrite constraints:
+
+- Preserve original meaning
+- Preserve sequence structure and order
+- Preserve subject lines, greetings, placeholders, dates, and times
+- Preserve the chosen platform and context
+- Do NOT add new information
+- Do NOT remove the single strongest distinguishing capability if present
+- Shorten sentences where possible
+- If a sentence would not be said out loud in a hallway conversation, rewrite it
+
+If a paragraph explains more than one idea, simplify it to one idea.
+
+If a paragraph contains more than one technical noun phrase, or more than one clause starting with “which”, “that”, or “by”, prioritize simplifying that paragraph during rewrite.
+
+Output only the rewritten text.`;
+
+async function rewriteSequenceInTimVoice(openai: OpenAI, sequenceText: string): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    temperature: 0,
+    messages: [
+      { role: "system", content: TIM_VOICE_REWRITE_PROMPT },
+      { role: "user", content: sequenceText },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No response from OpenAI API during Tim voice rewrite pass");
+  }
+
+  return content;
+}
+
 function parseSequenceOutput(text: string): SequenceSections {
   const sections: SequenceSections = {};
 
@@ -346,8 +399,10 @@ export async function generateSequence(
     throw new Error("No response from OpenAI API");
   }
 
+  const rewrittenContent = await rewriteSequenceInTimVoice(openai, content);
+
   console.log("GPT-5.2 raw output (first 500 chars):", content.slice(0, 500));
-  const parsed = parseSequenceOutput(content);
+  const parsed = parseSequenceOutput(rewrittenContent);
   const parsedSubjects = Object.entries(parsed).map(([k, v]) => `${k}: "${v.subject}"`).join(", ");
   console.log("Parsed subjects:", parsedSubjects);
   return parsed;
