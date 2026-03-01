@@ -1,0 +1,95 @@
+GeoMx, CellScape, and CosMx are complementary rather than competing: GeoMx is your flexible discovery and compartment-level spatial omics workhorse, CellScape is high-plex quantitative spatial proteomics at single-cell resolution over large areas, and CosMx is ultra–high-content single-cell/subcellular imaging for deep mechanistic questions.
+
+Core modality and resolution
+Platform	Primary readout	Resolution / scale	Typical tissue handling
+GeoMx	RNA (whole-Tx, panels) + protein via barcoded probes
+“Regional”/compartment and down to ~cellular AoIs; not true cell-by-cell counts
+FFPE and fresh/fixed frozen sections, non‑destructive
+CellScape	High‑plex protein (mIF cycles, spatial proteomics)
+True single-cell across whole slides; high-res imaging (182 nm/pixel)
+Standard histology slides, cyclic staining with integrated microfluidics
+CosMx	RNA whole transcriptome + protein on same cells
+Single-cell and subcellular (transcript spots in compartments)
+FFPE and fresh frozen; in situ imaging, non‑destructive
+Unique differentiators
+GeoMx
+
+Only platform in the portfolio designed for non‑destructive regional profiling of RNA and protein from user‑defined areas across the whole slide.
+
+Very flexible assay menu (whole transcriptome atlas, cancer atlas, IO proteome, etc.) so you can move between broad hypothesis‑free discovery and focused panels.
+
+Strength is compartmentalization: tumor vs stroma, invasive margin vs core, lesional vs perilesional, etc., using morphology- and marker-guided AOIs.
+
+CellScape
+
+Purpose‑built precise spatial proteomics with high‑plex cyclic mIF and quantitative single‑cell readouts over entire tissue sections.
+
+Open ecosystem: uses off‑the‑shelf fluorescent antibodies (not locked to proprietary conjugates), with EpicIF signal‑removal chemistry and HDR imaging to keep quantitation clean across many cycles.
+
+Integrated microfluidics and walk‑away automation for staining and cycling—engineered to be straightforward to adopt in translational and core environments.
+
+CosMx
+
+Only in situ imaging platform in this space offering whole transcriptome at single-cell spatial resolution plus same‑cell protein panel capability.
+
+Multi‑modal segmentation: combines membrane/protein images with ML segmentation and transcript-based refinement to get accurate cell boundaries in complex tissues.
+​
+
+Designed explicitly for cell atlasing, cell–cell interaction mapping, and subcellular biomarker localization, where you care about where individual transcripts sit within cells.
+
+Ideal use cases
+When GeoMx is “best”
+
+Early‑stage discovery on new tissues or indications, when you don’t yet know which cell types, regions, or gene sets matter and you want a broad, unbiased view across many ROIs.
+
+Microenvironment and compartment questions: TME architecture, tertiary lymphoid structures, invasive margins, fibrosis gradients, CNS region comparisons, etc.
+
+Program design where you plan a tiered workflow: use GeoMx to triage tissues and regions, then feed positive blocks/regions into CosMx or CellScape for deeper single‑cell work.
+​
+
+When CellScape is “best”
+
+High‑plex protein‑centric questions where post‑transcriptional regulation, phospho‑states, or protein localization drive the biology (IO, pathology‑adjacent biomarker programs, pharmacodynamics).
+
+Studies needing whole‑slide, quantitative single‑cell maps for dozens of markers across large cohorts—translational studies, tissue microarrays, or clinical trial biopsies.
+
+Environments that already have strong IHC/mIF workflows and want to scale into true high‑plex with automation and open antibodies rather than jump straight into transcriptomics.
+
+When CosMx is “best”
+
+Deep mechanistic work and cell atlas building: defining rare cell states, neighborhood architectures, ligand–receptor pairs, and pathway usage at single-cell resolution.
+
+Subcellular questions: nuclear vs cytoplasmic transcript distribution, synaptic localization in neuro, polarized epithelia, etc.
+
+Follow‑up to GeoMx: starting with regional profiling then zooming into key regions with whole‑transcriptome single‑cell data for target discovery or biomarker refinement.
+​
+
+“Best research” fit by question type
+If you phrase this as “what research is each platform best for,” you can think of it like a tiered funnel:
+
+GeoMx – best for:
+
+Tissue- and region‑level hypothesis generation across many samples and compartments.
+
+Projects where FFPE compatibility and non‑destructive, morphology‑guided AOI selection are critical.
+
+CellScape – best for:
+
+High‑plex, quantitative protein biomarker programs with an eye toward translation and potential clinical fit (especially IO, oncology, immunology).
+
+Situations where pathologists and translational scientists need intuitive images plus robust single‑cell protein data across the whole slide.
+
+CosMx – best for:
+
+Mechanistic and atlas‑level research where maximum information per cell (whole transcriptome ± protein) justifies deeper, more complex experiments.
+
+Projects aiming at target discovery, cell–cell communication mapping, and fine‑grained cell state classification in complex tissues.
+
+How to position the trio in a narrative
+A common, clean story for customers:
+
+Start with GeoMx on cohorts to map key compartments, identify high‑value regions, and build broad spatial transcriptomic/proteomic hypotheses.
+
+Use CosMx on selected blocks/regions to resolve those hypotheses at single-cell and subcellular resolution, giving you detailed atlases and interaction maps.
+
+Deploy CellScape when you want scalable, quantitative protein panels that operationalize those findings across larger cohorts or translational pipelines.
