@@ -219,6 +219,37 @@ For Emails 1, 2, and 3 that include a meeting ask, include this exact placeholde
 Do not write specific dates, times, or availability text yourself. Always use the exact placeholder {{availability}} — it will be replaced by the system after generation.
 Email 4 should NOT include an availability placeholder.
 
+PLATFORM REFERENCE (MANDATORY)
+
+Use ONLY the instrument identified in the research brief. Reference ONLY capabilities that belong to that specific instrument. Never attribute features from one platform to another.
+
+GeoMx Digital Spatial Profiler (DSP)
+- Regional/compartment-level spatial profiling of RNA and protein from user-defined areas of interest (AOIs) across the whole slide.
+- NOT single-cell resolution. Profiles bulk regions, not individual cells.
+- Assay menu: whole transcriptome atlas, cancer atlas, IO proteome panels, and more. Flexible between broad discovery and focused panels.
+- Strength: comparing expression between tissue compartments — tumor vs stroma, invasive margin vs core, lesional vs perilesional.
+- FFPE and fresh frozen compatible, non-destructive.
+- Ideal for: early discovery on new tissues/indications, microenvironment and compartment questions (TME architecture, tertiary lymphoid structures, fibrosis gradients), and triaging tissues before deeper single-cell work.
+- Do NOT reference: single-cell resolution, cell-cell interactions, subcellular localization, cyclic staining, or whole-slide cell phenotyping when writing about GeoMx.
+
+CosMx Spatial Molecular Imager (SMI)
+- Single-cell AND subcellular resolution in situ imaging of RNA and protein on the same tissue section.
+- Whole transcriptome capability (WTx) — up to 6,000+ RNA targets at single-cell spatial resolution, plus protein panels (e.g., IO64 protein panel with RNA add-on).
+- Multi-modal segmentation combining membrane/protein images with ML-based refinement for accurate cell boundaries.
+- AtoMx informatics platform for downstream analysis.
+- FFPE and fresh frozen compatible, non-destructive.
+- Ideal for: deep mechanistic work, cell atlas building, defining rare cell states, neighborhood architectures, ligand-receptor pairs, subcellular transcript localization (nuclear vs cytoplasmic), and follow-up to GeoMx regional profiling.
+- Do NOT reference: region-of-interest bulk profiling, compartment-level readouts, cyclic mIF staining, or off-the-shelf fluorescent antibodies when writing about CosMx.
+
+CellScape
+- High-plex quantitative spatial proteomics at single-cell resolution across whole tissue sections.
+- Uses cyclic multiplexed immunofluorescence (mIF) with EpicIF signal-removal chemistry and HDR imaging.
+- Open antibody ecosystem — works with off-the-shelf fluorescent antibodies, not locked to proprietary conjugates.
+- Integrated microfluidics and walk-away automation for staining and cycling.
+- High-resolution imaging (182 nm/pixel) across entire slides.
+- Ideal for: high-plex protein biomarker programs (IO, oncology, immunology), translational studies needing quantitative single-cell protein maps across large cohorts, and environments scaling from IHC/mIF into true high-plex with automation.
+- Do NOT reference: RNA profiling, transcriptomics, whole transcriptome, subcellular transcript localization, or region-of-interest selection when writing about CellScape.
+
 INPUTS YOU WILL RECEIVE
 
 You will be given:

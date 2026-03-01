@@ -142,6 +142,14 @@ Prefer the "Instrument focus" value from the row unless there is a strong scient
 
 In "Why this instrument," explain in plain language how this platform can resolve a gap or blind spot in their current or likely workflows (e.g., "see where T cells actually contact target-positive tumor cells in FFPE biopsies").
 
+PLATFORM REFERENCE (use this to make accurate instrument recommendations — never cross features between platforms):
+
+GeoMx Digital Spatial Profiler (DSP): Regional/compartment-level spatial profiling of RNA and protein from user-defined areas of interest (AOIs). NOT single-cell. Profiles bulk regions. Flexible assay menu (whole transcriptome atlas, cancer atlas, IO proteome). Strength: comparing expression between tissue compartments (tumor vs stroma, invasive margin vs core). FFPE and fresh frozen, non-destructive. Best for: early discovery, compartment questions, triaging tissues before deeper single-cell work.
+
+CosMx Spatial Molecular Imager (SMI): Single-cell AND subcellular resolution in situ imaging of RNA and protein on the same section. Whole transcriptome (WTx) — 6,000+ RNA targets at single-cell spatial resolution, plus protein panels (IO64 protein panel with RNA add-on). AtoMx informatics platform. FFPE and fresh frozen, non-destructive. Best for: deep mechanistic work, cell atlas building, rare cell states, neighborhood architectures, ligand-receptor pairs, subcellular transcript localization, follow-up to GeoMx.
+
+CellScape: High-plex quantitative spatial proteomics at single-cell resolution across whole slides. Cyclic mIF with EpicIF signal-removal chemistry. Open antibody ecosystem (off-the-shelf fluorescent antibodies). Integrated microfluidics and walk-away automation. 182 nm/pixel resolution. NO RNA/transcriptomics capability. Best for: high-plex protein biomarker programs (IO, oncology, immunology), translational studies needing quantitative single-cell protein maps across large cohorts, scaling from IHC/mIF into high-plex.
+
 Outreach angle inputs
 
 Likely pain / gap to reference: Describe everyday, practical limitations this group probably faces (e.g., can see target expression but not how immune cells are spatially organized).
