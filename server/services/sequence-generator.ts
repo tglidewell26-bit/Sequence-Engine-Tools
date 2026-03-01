@@ -19,21 +19,31 @@ const FORBIDDEN_PHRASES = [
   "walkthrough",
   "show you",
   "closing the loop",
+  "something i hear",
+  "i hear a lot",
+  "comes up a lot",
+  "a question that comes up",
 ] as const;
 
 // Additional pattern-based violations: no demo language, no meeting duration,
-// no competitor mentions, no parentheses
+// no competitor mentions, no parentheses, no third-party/setup framing
 const VIOLATION_PATTERNS: { label: string; pattern: RegExp }[] = [
-  { label: "Demo language",      pattern: /\bdemo(?:nstrat(?:ion|e))?\b/i },
-  { label: "Meeting duration",   pattern: /\b\d+[-\s]?minute(?:s)?\b/i },
-  { label: "Meeting duration",   pattern: /\bhalf[-\s]?hour\b/i },
-  { label: "Meeting duration",   pattern: /\bquick\s+call\b/i },
-  { label: "Competitor mention", pattern: /\b10[xX]\s*[Gg]enomics\b/i },
-  { label: "Competitor mention", pattern: /\bVisium\b/i },
-  { label: "Competitor mention", pattern: /\bMERFISH\b/i },
-  { label: "Competitor mention", pattern: /\bseqFISH\b/i },
-  { label: "Competitor mention", pattern: /\bXenium\b/i },
-  { label: "Parentheses",        pattern: /\([^)]{1,200}\)/ },
+  { label: "Demo language",           pattern: /\bdemo(?:nstrat(?:ion|e))?\b/i },
+  { label: "Meeting duration",        pattern: /\b\d+[-\s]?minute(?:s)?\b/i },
+  { label: "Meeting duration",        pattern: /\bhalf[-\s]?hour\b/i },
+  { label: "Meeting duration",        pattern: /\bquick\s+call\b/i },
+  { label: "Competitor mention",      pattern: /\b10[xX]\s*[Gg]enomics\b/i },
+  { label: "Competitor mention",      pattern: /\bVisium\b/i },
+  { label: "Competitor mention",      pattern: /\bMERFISH\b/i },
+  { label: "Competitor mention",      pattern: /\bseqFISH\b/i },
+  { label: "Competitor mention",      pattern: /\bXenium\b/i },
+  { label: "Parentheses",             pattern: /\([^)]{1,200}\)/ },
+  // Third-party framing — the model must never attribute pain to "teams" or "groups"
+  { label: "Third-party framing",     pattern: /\b(?:many|other|most)\s+(?:teams?|groups?|labs?|researchers?)\b/i },
+  { label: "Third-party framing",     pattern: /\b(?:teams?|groups?)\s+(?:often|tend|struggle|face|working)\b/i },
+  { label: "Setup sentence framing",  pattern: /\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\b/i },
+  { label: "Setup sentence framing",  pattern: /\ba\s+(?:common\s+)?question\s+that\s+comes?\s+up\b/i },
+  { label: "Setup sentence framing",  pattern: /\bcomes?\s+up\s+(?:a\s+lot|often|frequently)\b/i },
 ];
 
 // Structured content outline — ChatGPT never decides any of these values
@@ -87,15 +97,136 @@ function extractSection(researchBrief: string, headingFragment: string): string 
 }
 
 /**
+ * Strip third-party framing, hedge words, and "I hear / comes up" language
+ * from an extracted outline field — BEFORE it reaches the AI.
+ *
+ * The model must never receive text like "many teams struggle with X" or
+ * "something I hear a lot". Those patterns cause dancing. Kill them here.
+ */
+function sanitizeField(text: string): string {
+  if (!text) return text;
+  let s = text;
+
+  // Remove "many/other/these teams/groups/labs/researchers [verb]"
+  s = s.replace(/\b(?:many|other|these|most)\s+(?:teams?|groups?|labs?|researchers?|scientists?)\s+(?:often\s+|typically\s+|commonly\s+)?(?:working\s+on|studying|developing|running|using|do(?:ing)?|face|struggle|lack|tend)\b/gi, "");
+  s = s.replace(/\b(?:teams?|groups?|labs?|researchers?|scientists?)\s+(?:often|typically|tend\s+to|commonly|usually|face|struggle|lack)\b/gi, "");
+
+  // Remove "something I/we hear [a lot]", "comes up [a lot]", "a question that comes up"
+  s = s.replace(/\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\s+(?:a\s+lot\s+|often\s+|frequently\s+)?(?:is\s+)?/gi, "");
+  s = s.replace(/\ba\s+(?:common\s+)?question\s+that\s+comes?\s+up\b/gi, "");
+  s = s.replace(/\bcomes?\s+up\s+(?:a\s+lot\s*|often\s*|frequently\s*)(?:is\s+)?/gi, "");
+
+  // Strip standalone hedge words that survive the above
+  s = s.replace(/\boften\b/gi, "");
+  s = s.replace(/\btypically\b/gi, "");
+  s = s.replace(/\bcommonly\b/gi, "");
+  s = s.replace(/\btend[s]?\s+to\b/gi, "");
+
+  // Remove leading conjunction artifacts
+  s = s.replace(/^[,;]\s*/, "").replace(/^(?:and|but|or)\s+/i, "");
+
+  return s.replace(/\s{2,}/g, " ").trim();
+}
+
+/**
+ * Convert an extracted pain/gap blurb into a hard, second-person declarative
+ * sentence — e.g. "You can measure X, but you cannot see Y."
+ *
+ * The model receives a statement of fact, not a description of a gap.
+ * This eliminates the model's ability to re-frame or soften the pain.
+ */
+function toPainStatement(text: string): string {
+  if (!text) return text;
+  let s = text.trim().replace(/^[-•*]\s*/, "");
+
+  // Already second-person
+  if (/^you\b/i.test(s)) return s;
+
+  // "Can X but cannot/not Y" — prepend "You"
+  if (/^can\b/i.test(s)) return `You ${s[0].toLowerCase()}${s.slice(1)}`;
+
+  // "Cannot / Can't X" — prepend "You"
+  if (/^cannot\b|^can't\b/i.test(s)) return `You ${s[0].toLowerCase()}${s.slice(1)}`;
+
+  // "Limited to X" / "Limited ability to X"
+  s = s.replace(/^[Ll]imited\s+to\s+/, "You are limited to ");
+  s = s.replace(/^[Ll]imited\s+ability\s+to\s+/, "You cannot ");
+
+  // "Rely on X"
+  s = s.replace(/^[Rr]el(?:y|ying)\s+on\s+/, "You rely on ");
+
+  // "Lack of X" / "Lacking X"
+  s = s.replace(/^[Ll]ack\s+of\s+/, "You lack ");
+  s = s.replace(/^[Ll]acking\s+/, "You lack ");
+
+  // "Unable to X"
+  s = s.replace(/^[Uu]nable\s+to\s+/, "You cannot ");
+
+  // "Difficulty with/in X"
+  s = s.replace(/^[Dd]ifficulty\s+(?:with\s+|in\s+)?/, "You cannot ");
+
+  // "Miss X" / "Missing X"
+  s = s.replace(/^[Mm]issing\s+/, "You are missing ");
+
+  // If still no second-person subject, add "You" for capability/limitation verbs
+  if (!/^[Yy]ou\b/.test(s)) {
+    s = `You ${s[0].toLowerCase()}${s.slice(1)}`;
+  }
+
+  return s;
+}
+
+/**
+ * Convert a spatial advantage blurb into a concrete capability sentence:
+ * "With {platform}, you can [specific thing]."
+ */
+function toCapabilityStatement(text: string, platform: Platform): string {
+  if (!text) return text;
+  let s = text.trim().replace(/^[-•*]\s*/, "");
+
+  // Already well-formed
+  if (/^(?:with\s+|you\s+can\b)/i.test(s)) return s;
+
+  // "Ability to X" → "With {platform}, you can X"
+  const abilityMatch = s.match(/^[Aa]bility\s+to\s+(.+)/);
+  if (abilityMatch) return `With ${platform}, you can ${abilityMatch[1]}`;
+
+  // Leading action verb — wrap it
+  const verbMatch = s.match(/^([Rr]esolve|[Ii]dentify|[Ss]ee|[Mm]ap|[Dd]etect|[Qq]uantify|[Pp]rofile|[Cc]haracterize|[Cc]onfirm|[Tt]rack|[Vv]isualize)\s+(.+)/);
+  if (verbMatch) return `With ${platform}, you can ${verbMatch[1].toLowerCase()} ${verbMatch[2]}`;
+
+  // Default: wrap the whole statement
+  return `With ${platform}, you can ${s[0].toLowerCase()}${s.slice(1)}`;
+}
+
+/**
+ * Strip hedge words from trigger/pressure text to make it a factual statement.
+ */
+function toTriggerStatement(text: string): string {
+  if (!text) return text;
+  let s = text.trim().replace(/^[-•*]\s*/, "");
+
+  s = s.replace(/\bsuggests?\b/gi, "means");
+  s = s.replace(/\bsignals?\b/gi, "means");
+  s = s.replace(/\bindicates?\b/gi, "means");
+  s = s.replace(/\blikely\b/gi, "");
+  s = s.replace(/\bpossibly\b/gi, "");
+  s = s.replace(/\bprobably\b/gi, "");
+
+  return s.replace(/\s{2,}/g, " ").trim();
+}
+
+/**
  * STAGE 1: Build a deterministic content outline from the Perplexity research output.
+ *
+ * All fields are converted to hard, assertive, second-person factual statements
+ * before the AI sees them. The AI receives statements, not topics.
  *
  * ChatGPT NEVER decides:
  *   - what the pain is
  *   - what the prospect anchor is
  *   - which angle to use
  *   - which platform to reference
- *
- * It only writes sentences that express these pre-determined points.
  */
 function buildContentOutline(
   _leadIntel: string,
@@ -103,25 +234,33 @@ function buildContentOutline(
 ): ContentOutline {
   const platform = extractPlatform(researchBrief);
 
-  const prospectAnchor =
+  // Extract raw text from Perplexity sections
+  const rawAnchor =
     extractSection(researchBrief, "Research focus and disease area") ||
     extractSection(researchBrief, "Research focus") ||
     "their research area";
 
-  const pain =
+  const rawPain =
     extractSection(researchBrief, "Likely pain") ||
     extractSection(researchBrief, "pain / gap") ||
-    "workflow gaps in spatial context";
+    "cannot see the spatial organization of immune cells in tissue";
 
-  const trigger =
+  const rawTrigger =
     extractSection(researchBrief, "Recent trigger") ||
     extractSection(researchBrief, "trigger / pressure") ||
     "";
 
-  const spatialAdvantage =
+  const rawAdvantage =
     extractSection(researchBrief, "Concrete spatial advantage") ||
     extractSection(researchBrief, "Why this instrument") ||
     "";
+
+  // 1. Strip third-party framing and hedge language (pre-AI, hard-coded)
+  // 2. Convert to assertive, second-person declarative statements
+  const prospectAnchor = sanitizeField(rawAnchor);
+  const pain          = toPainStatement(sanitizeField(rawPain));
+  const trigger       = toTriggerStatement(sanitizeField(rawTrigger));
+  const spatialAdvantage = toCapabilityStatement(sanitizeField(rawAdvantage), platform);
 
   return { platform, prospectAnchor, pain, trigger, spatialAdvantage };
 }
@@ -160,15 +299,15 @@ FIXED CONSTRAINTS (enforced — do not deviate):
 EMAIL 1 CONTENT:
 - Subject: short and specific, references a practical problem, no marketing language
 - Introduce Tim briefly and plainly
-- Reference this pain: ${pain}
-- Anchor the pain to this prospect context: ${prospectAnchor}
-- Reference ${platform} only as a way to address that pain — do not list features
+- State the following pain plainly and directly. Do not soften it, generalize it, or attribute it to other teams: ${pain}
+- The pain is specific to this prospect's work: ${prospectAnchor}
+- Reference ${platform} only as a way to address that exact pain — do not list features
 - Close: in-person meeting ask while Tim is in the area, then {{availability}} on its own line
 
 EMAIL 2 CONTENT:
 - Subject: different angle from Email 1
 - Acknowledge they may not have seen the first email
-- Raise this new angle: ${escalationAngle}
+- State this angle plainly and directly. Do not soften it or attribute it to other teams: ${escalationAngle}
 - Do not re-explain ${platform}
 - Close: {{availability}} on its own line
 
@@ -216,6 +355,7 @@ All structure, rules, sequencing, and constraints are enforced elsewhere.
 Do not invent facts.
 Do not introduce new ideas.
 Do not add explanations beyond what is provided.
+Do not introduce framing sentences. Do not contextualize the problem. Write the statements you are given as plainly as possible.
 
 Write at an 8th-grade reading level.
 Use short sentences.
@@ -235,6 +375,8 @@ const PROSPECT_ANCHOR_PROMPT = `Rewrite Email 1 and Email 2 so the pain clearly 
 
 If the pain could apply to any lab, rewrite it to anchor it to the provided prospect context.
 
+If Email 1 or Email 2 contains a setup sentence that introduces the pain indirectly — for example: "Something I hear a lot...", "A question that comes up...", "Many teams face...", "A lot of groups struggle with..." — rewrite it as a direct factual statement addressed to the reader using "you", not "teams" or "groups".
+
 Do not add facts.
 Do not increase specificity beyond what was provided.
 
@@ -252,7 +394,7 @@ This is a voice compression pass only.
 
 Rules for Tim's voice:
 - Prefer questions over statements
-- Speak as someone who sees patterns across teams
+- Speak directly to the reader's work, not to other teams or groups
 - Use simple, direct language
 - Allow light repetition
 - No marketing language
@@ -294,6 +436,8 @@ Violations to remove or rewrite:
 - Meeting duration language: remove phrases like "30 minutes", "15-minute call", "quick call", "half hour" — do not replace with other durations
 - Competitor names: remove entirely, do not replace
 - Parentheses: remove parentheses and their contents — integrate any essential meaning into surrounding text without parentheses
+- Setup framing sentences: rewrite any sentence that introduces pain indirectly ("Something I hear a lot...", "A question that comes up...", "Many teams face...", "A lot of groups struggle with...") as a direct factual statement addressed to the reader. Use "you", not "teams", "groups", or "others"
+- Third-party framing: any reference to "many teams", "other groups", "other labs", or "researchers" doing something — rewrite to address the reader directly using "you"
 
 Preserve:
 - All section headers (Email 1, Email 2, LinkedIn Connection Request, LinkedIn Message, Email 3, Email 4)
