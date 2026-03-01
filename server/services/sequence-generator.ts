@@ -19,6 +19,12 @@ This is not marketing copy.
 This is not qualification.
 This is a practical scientific conversation starter.
 
+Write the sequence as if Tim is thinking out loud while typing.
+
+Do not try to sound polished, impressive, or efficient.
+
+The goal is recognition and conversation, not explanation or persuasion.
+
 VOICE AND TONE
 
 Write the way a scientist talks to another scientist.
