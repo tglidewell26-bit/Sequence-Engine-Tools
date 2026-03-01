@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Copy, Check, Sparkles, Pencil, Save, BookmarkPlus, BookmarkCheck, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Copy, Check, Sparkles, Pencil, Save, BookmarkPlus, BookmarkCheck, ChevronDown, ChevronUp, FileText, Calendar as CalendarIcon, Plus, X } from "lucide-react";
 import type { SequenceSections, SelectedAssets } from "@shared/schema";
+import type { DateRange } from "react-day-picker";
+import { addDays, format, isSameDay } from "date-fns";
 
 const MAX_CHARS = 50000;
 
@@ -70,10 +75,52 @@ interface GenerateResult {
   researchBrief?: string;
 }
 
+type Meridiem = "AM" | "PM";
+
+interface TimeValue {
+  hour: string;
+  minute: string;
+  meridiem: Meridiem;
+}
+
+interface TimeRange {
+  id: string;
+  start: TimeValue;
+  end: TimeValue;
+}
+
+const HOURS = Array.from({ length: 12 }, (_, index) => String(index + 1));
+const MINUTES = ["00", "15", "30", "45"];
+
+const defaultTimeValue = (): TimeValue => ({ hour: "9", minute: "00", meridiem: "AM" });
+
+const defaultTimeRange = (): TimeRange => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  start: defaultTimeValue(),
+  end: { hour: "5", minute: "00", meridiem: "PM" },
+});
+
+function getDatesInRange(range?: DateRange): Date[] {
+  if (!range?.from) return [];
+  if (!range.to) return [range.from];
+
+  const dates: Date[] = [];
+  let current = range.from;
+  while (current <= range.to) {
+    dates.push(current);
+    current = addDays(current, 1);
+  }
+  return dates;
+}
+
+const formatTimeValue = ({ hour, minute, meridiem }: TimeValue): string => `${hour}:${minute} ${meridiem}`;
+
 export default function Home() {
   const [leadIntel, setLeadIntel] = useState("");
   const [sequenceName, setSequenceName] = useState("");
   const [availabilityBlock, setAvailabilityBlock] = useState("");
+  const [availabilityRange, setAvailabilityRange] = useState<DateRange | undefined>();
+  const [dailyAvailability, setDailyAvailability] = useState<Record<string, TimeRange[]>>({});
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [savedId, setSavedId] = useState<number | null>(null);
   const [briefExpanded, setBriefExpanded] = useState(false);
@@ -86,6 +133,97 @@ export default function Home() {
       textareaRef.current.style.height = `${Math.max(200, textareaRef.current.scrollHeight)}px`;
     }
   }, [leadIntel]);
+
+  useEffect(() => {
+    const selectedDates = getDatesInRange(availabilityRange);
+
+    setDailyAvailability((previous) => {
+      const next: Record<string, TimeRange[]> = {};
+      for (const date of selectedDates) {
+        const key = format(date, "yyyy-MM-dd");
+        next[key] = previous[key] && previous[key].length > 0 ? previous[key] : [defaultTimeRange()];
+      }
+      return next;
+    });
+
+    if (!availabilityRange?.from) {
+      setAvailabilityBlock("");
+    }
+  }, [availabilityRange]);
+
+  useEffect(() => {
+    if (!availabilityRange?.from) {
+      setAvailabilityBlock("");
+      return;
+    }
+
+    const selectedDates = getDatesInRange(availabilityRange);
+    if (!selectedDates.length) {
+      setAvailabilityBlock("");
+      return;
+    }
+
+    const from = format(availabilityRange.from, "EEEE, MMMM d");
+    const toDate = availabilityRange.to;
+    const to = toDate ? format(toDate, "EEEE, MMMM d") : null;
+    const headerLine = toDate && !isSameDay(availabilityRange.from, toDate)
+      ? `I'll be in town on ${from} through ${to}.`
+      : `I'll be in town on ${from}.`;
+
+    const dayLines = selectedDates.map((date) => {
+      const key = format(date, "yyyy-MM-dd");
+      const ranges = dailyAvailability[key] ?? [];
+      const formattedRanges = ranges
+        .map((range) => `${formatTimeValue(range.start)}–${formatTimeValue(range.end)}`)
+        .join("; ");
+      return `${format(date, "EEEE, MMMM d")}: ${formattedRanges || "TBD"}`;
+    });
+
+    setAvailabilityBlock([headerLine, "", "Available times:", ...dayLines].join("\n"));
+  }, [availabilityRange, dailyAvailability]);
+
+  const selectedDates = getDatesInRange(availabilityRange);
+
+  const updateTimeRange = (
+    dateKey: string,
+    rangeId: string,
+    field: "start" | "end",
+    timeField: keyof TimeValue,
+    value: string,
+  ) => {
+    setDailyAvailability((previous) => ({
+      ...previous,
+      [dateKey]: (previous[dateKey] ?? []).map((range) => {
+        if (range.id !== rangeId) return range;
+        return {
+          ...range,
+          [field]: {
+            ...range[field],
+            [timeField]: value,
+          },
+        };
+      }),
+    }));
+  };
+
+  const addTimeRange = (dateKey: string) => {
+    setDailyAvailability((previous) => ({
+      ...previous,
+      [dateKey]: [...(previous[dateKey] ?? []), defaultTimeRange()],
+    }));
+  };
+
+  const removeTimeRange = (dateKey: string, rangeId: string) => {
+    setDailyAvailability((previous) => {
+      const existingRanges = previous[dateKey] ?? [];
+      if (existingRanges.length <= 1) return previous;
+
+      return {
+        ...previous,
+        [dateKey]: existingRanges.filter((range) => range.id !== rangeId),
+      };
+    });
+  };
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -179,17 +317,97 @@ export default function Home() {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="availability-block">Availability Block</Label>
+        <div className="space-y-3">
+          <Label>Availability</Label>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span>I will be in town on</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="justify-start text-left font-normal"
+                  data-testid="button-availability-date-range"
+                >
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  {availabilityRange?.from
+                    ? availabilityRange.to
+                      ? `${format(availabilityRange.from, "MMM d, yyyy")} - ${format(availabilityRange.to, "MMM d, yyyy")}`
+                      : format(availabilityRange.from, "MMM d, yyyy")
+                    : "Select date range"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={availabilityRange}
+                  onSelect={setAvailabilityRange}
+                  numberOfMonths={2}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {selectedDates.length > 0 && (
+            <div className="space-y-3 rounded-md border p-3">
+              {selectedDates.map((date) => {
+                const dateKey = format(date, "yyyy-MM-dd");
+                const timeRanges = dailyAvailability[dateKey] ?? [];
+
+                return (
+                  <div key={dateKey} className="space-y-2 rounded-md border p-3">
+                    <p className="font-medium text-sm">{format(date, "EEEE, MMMM d")}</p>
+                    {timeRanges.map((range, index) => (
+                      <div key={range.id} className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto] items-end gap-3">
+                        <TimeValueFields
+                          label="Start time"
+                          prefix={`start-${dateKey}-${index}`}
+                          value={range.start}
+                          onChange={(timeField, value) => updateTimeRange(dateKey, range.id, "start", timeField, value)}
+                        />
+                        <span className="text-muted-foreground text-sm md:pb-2">to</span>
+                        <TimeValueFields
+                          label="End time"
+                          prefix={`end-${dateKey}-${index}`}
+                          value={range.end}
+                          onChange={(timeField, value) => updateTimeRange(dateKey, range.id, "end", timeField, value)}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeTimeRange(dateKey, range.id)}
+                          disabled={timeRanges.length <= 1}
+                          data-testid={`button-remove-time-range-${dateKey}-${index}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addTimeRange(dateKey)}
+                      data-testid={`button-add-time-range-${dateKey}`}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Add another time range
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <Textarea
             id="availability-block"
-            placeholder={"e.g. I'll be in the South San Francisco area the week of March 10th.\n\nAvailable times:\nMonday 10am–4pm\nTuesday 10am–1pm\nWednesday 2pm–4pm"}
             value={availabilityBlock}
-            onChange={(e) => setAvailabilityBlock(e.target.value)}
-            className="min-h-[80px] resize-none"
+            readOnly
+            className="min-h-[120px] resize-none"
             data-testid="input-availability-block"
           />
-          <p className="text-xs text-muted-foreground">Your meeting availability. Gets injected into emails 1–3 where the availability placeholder appears.</p>
+          <p className="text-xs text-muted-foreground">This availability summary is auto-generated and injected into emails 1–3.</p>
         </div>
 
         <Button
@@ -288,6 +506,57 @@ export default function Home() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function TimeValueFields({
+  label,
+  prefix,
+  value,
+  onChange,
+}: {
+  label: string;
+  prefix: string;
+  value: TimeValue;
+  onChange: (field: keyof TimeValue, value: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={`${prefix}-hour`} className="text-xs text-muted-foreground">{label}</Label>
+      <div className="grid grid-cols-3 gap-2">
+        <Select value={value.hour} onValueChange={(selected) => onChange("hour", selected)}>
+          <SelectTrigger id={`${prefix}-hour`} data-testid={`${prefix}-hour`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {HOURS.map((hour) => (
+              <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={value.minute} onValueChange={(selected) => onChange("minute", selected)}>
+          <SelectTrigger data-testid={`${prefix}-minute`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MINUTES.map((minute) => (
+              <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={value.meridiem} onValueChange={(selected) => onChange("meridiem", selected)}>
+          <SelectTrigger data-testid={`${prefix}-meridiem`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="AM">AM</SelectItem>
+            <SelectItem value="PM">PM</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
