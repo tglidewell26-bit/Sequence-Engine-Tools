@@ -1,0 +1,149 @@
+You are not writing “a sequence.”
+
+You are writing six different psychological actions, each with:
+
+a single job
+
+exclusive permissions
+
+exclusive prohibitions
+
+So the fix is not more voice compression.
+
+The fix is to lock what each step is allowed to do and mechanically forbid everything else.
+
+🧱 WHAT NEEDS TO BE HARD-CODED (NOT PROMPTED)
+1️⃣ Add an INTENT ENUM PER STEP (CRITICAL)
+
+In code, define this explicitly:
+
+type SequenceIntent =
+  | "recognition"
+  | "tension"
+  | "humanity"
+  | "redundancy"
+  | "decision"
+  | "release";
+
+Then map it deterministically:
+
+const INTENT_BY_SECTION = {
+  email1: "recognition",
+  email2: "tension",
+  linkedinConnection: "humanity",
+  linkedinMessage: "redundancy",
+  email3: "decision",
+  email4: "release",
+} as const;
+
+The model should never infer intent.
+It must be told which intent applies to which section.
+
+2️⃣ PER-INTENT PERMISSION MATRIX (THIS FIXES EVERYTHING)
+
+This is the missing piece.
+
+Create a rule table like this and enforce it post-generation:
+
+Intent	May State Pain	May Ask Question	May State Capability	May Add Consequence
+recognition	✅	✅ (1 max)	❌	❌
+tension	✅	✅ (1 max)	❌	✅
+humanity	❌	❌	❌	❌
+redundancy	❌	❌	❌	❌
+decision	❌	❌	✅ (1 only)	✅
+release	❌	❌	❌	❌
+
+Then enforce:
+
+If Email 1 contains a capability → delete it
+
+If Email 2 explains the platform → delete it
+
+If Email 3 asks exploratory questions → delete them
+
+If Email 4 introduces anything new → hard fail
+
+This is why Email 3 felt diluted and Email 1 felt salesy before.
+
+3️⃣ PAIN IS ALLOWED ONLY IN EMAILS 1 & 2
+
+Hard rule:
+
+Email 1: introduce the existence of a gap
+
+Email 2: introduce the cost of ignoring the gap
+
+Email 3: do not re-explain pain — only resolve it
+
+If pain language appears in Email 3:
+
+replace with outcome language
+
+or delete
+
+This prevents “repeating the same message louder.”
+
+4️⃣ CAPABILITY IS ALLOWED ONLY IN EMAIL 3
+
+This aligns perfectly with what you described as “The Bazooka.”
+
+Hard rules:
+
+Exactly one platform capability
+
+Stated as a fact, not a list
+
+Followed immediately by why it matters
+
+Example pattern (not prompt text, logic):
+
+[Capability statement].
+That matters because [risk / ambiguity / rework].
+
+If the model tries to:
+
+tease capability earlier → delete
+
+stack multiple capabilities → keep strongest only
+
+5️⃣ QUESTIONS ARE NOT A STYLE — THEY ARE A TOOL
+
+You already identified this instinctively.
+
+So encode it:
+
+const MAX_QUESTIONS_BY_SECTION = {
+  email1: 1,
+  email2: 1,
+  email3: 0,
+  email4: 0,
+};
+
+Email 3 asking questions is definitionally wrong for a decision-forcer.
+
+6️⃣ EMAIL 4 MUST FEEL LIKE A RELEASE VALVE
+
+Add a semantic check:
+
+Email 4 must:
+
+acknowledge timing
+
+state future reconnection
+
+contain zero pressure verbs
+
+contain zero asks
+
+If any of the following appear → rewrite:
+
+“should we”
+
+“would you”
+
+“can I”
+
+“are you open”
+
+Email 4 is not outreach.
+It’s permission to disengage without penalty.
