@@ -333,9 +333,10 @@ function buildUserMessage(outline: ContentOutline): string {
   const { platform, prospectAnchor, pain, trigger, spatialAdvantage } = outline;
   const escalationAngle = trigger || spatialAdvantage || pain;
 
-  return `Write a 6-part outreach sequence using this fixed content outline.
+  return `Write a 6-part outreach sequence using the structure below.
 
-Output only these sections in this exact order, with these exact headers:
+Output only these sections in this exact order with these exact headers:
+
 Email 1
 Email 2
 LinkedIn Connection Request
@@ -343,65 +344,151 @@ LinkedIn Message
 Email 3
 Email 4
 
-FIXED CONSTRAINTS (enforced — do not deviate):
-- Sender identity: Tim Glidewell, Spatial Regional Account Manager, Bruker Spatial Biology
-- Platform: ${platform} (mention only ${platform}, no other platforms)
-- Every email starts with its own paragraph: Hi {{first_name}},
-- Every email has a subject line on its own line formatted exactly as: Subject: [subject text]
-- Subject lines must be short and specific — no marketing language, no metaphors, no clever phrasing
-- Emails 1, 2, and 3 each include this exact placeholder on its own line: {{availability}}
-- Email 4 does NOT include {{availability}}
-- Meeting ask is always in-person while Tim is in the area — never a video call or phone call
-- Never write specific dates or times — use only the {{availability}} placeholder
 
-EMAIL 1 — INTENT: RECOGNITION (introduce a gap, earn curiosity)
-- Subject: short and specific, references a practical problem, no marketing language
-- Introduce Tim briefly and plainly
-- State the following pain plainly and directly. Do not soften it, generalize it, or attribute it to other teams: ${pain}
-- The pain is specific to this prospect's work: ${prospectAnchor}
-- You may ask at most ONE reflective question
-- Do NOT state any platform capability or feature — only reference ${platform} as relevant to this area
-- Do NOT add consequences or stakes
-- Close: in-person meeting ask while Tim is in the area, then {{availability}} on its own line
+GENERAL RULES
 
-EMAIL 2 — INTENT: TENSION (raise the cost of inaction)
-- Subject: different angle from Email 1
-- Acknowledge they may not have seen the first email
-- State this angle plainly and directly. Do not soften it or attribute it to other teams: ${escalationAngle}
-- You may state the consequence of ignoring this gap
-- You may ask at most ONE question
-- Do NOT explain or describe ${platform} capabilities — no features, no specs
-- Close: {{availability}} on its own line
+Sender identity:
+Tim Glidewell
+Spatial Regional Account Manager
+Bruker Spatial Biology
 
-LINKEDIN CONNECTION REQUEST — INTENT: HUMANITY (human connection only)
-- One sentence only
-- Human and neutral
-- No selling, no explaining, no pain, no capabilities, no questions
+Platform constraint:
+Only reference ${platform}. Never reference any other spatial platform.
 
-LINKEDIN MESSAGE — INTENT: REDUNDANCY (gentle touchpoint)
-- Acknowledge reaching out by email
-- Short and conversational
-- No technical explanation, no pain, no capabilities, no questions
-- No meeting ask
+Formatting rules:
+• Every email begins with its own paragraph: Hi {{first_name}},
+• Every email includes a subject line on its own line formatted exactly:
+Subject: [short subject]
 
-EMAIL 3 — INTENT: DECISION (the one capability reveal)
-- Subject: short and specific
-- Acknowledge lack of response neutrally — no apology
-- State exactly ONE concrete platform capability as a fact: ${spatialAdvantage || pain}
-- Immediately follow with why it matters (risk, ambiguity, or rework it resolves)
-- Do NOT re-state pain or gap language — this is resolution, not repetition
-- Do NOT ask any questions — this email is a confident statement
-- More direct and confident tone
-- Close: in-person meeting ask while Tim is in the area, then {{availability}} on its own line
+Subject line rules:
+• Short and specific
+• No marketing language
+• No metaphors or clever phrasing
+• Should reference a practical scientific or workflow issue
 
-EMAIL 4 — INTENT: RELEASE (permission to disengage)
-- Subject: short and specific
-- No new information, no selling, no pain, no capabilities
-- Acknowledge timing may not be right
-- State Tim will reconnect later
-- Calm, respectful, final tone
-- No questions, no meeting ask, no pressure verbs ("should we", "would you", "can I", "are you open")
-- No {{availability}}`;
+Availability rules:
+Emails 1, 2, and 3 must include this placeholder on its own line:
+
+{{availability}}
+
+Email 4 must NOT include {{availability}}.
+
+Meeting rules:
+Meeting requests are always in-person while Tim is in the area.
+Never suggest video calls or phone calls.
+Never write specific dates or times — only use {{availability}}.
+
+
+CONTENT INPUTS
+
+Platform:
+${platform}
+
+Prospect research context:
+${prospectAnchor}
+
+Pain / gap:
+${pain}
+
+Escalation angle:
+${escalationAngle}
+
+Concrete capability:
+${spatialAdvantage}
+
+
+EMAIL STRUCTURE
+
+Each email must follow this structure:
+
+SECTION 1 — RESEARCH CONTEXT  
+Two sentences.
+• Reference the company’s research naturally.
+• Show familiarity with their work without copying language from their website.
+• Mention the biological area or study context.
+
+SECTION 2 — PAIN POINT  
+Two sentences.
+• Clearly describe the scientific or workflow gap using ${pain}.
+• Frame it as a common challenge in this type of research.
+
+SECTION 3 — PLATFORM VALUE  
+Two sentences.
+• Explain how ${platform} addresses this problem.
+• Use the concept in ${spatialAdvantage}.
+• Keep the explanation concrete and scientific.
+
+SECTION 4 — CALL TO ACTION  
+Two sentences.
+• Ask for a short in-person meeting while Tim is in the area.
+• Immediately place {{availability}} on its own line.
+
+
+EMAIL 1 — INTRODUCTION
+Purpose: introduce Bruker Spatial Biology and establish relevance.
+
+Tone:
+• Curious
+• Professional
+• Not salesy
+
+
+EMAIL 2 — FOLLOW UP
+Purpose: reframe the problem and reinforce importance.
+
+Rules:
+• Acknowledge they may have missed the first email.
+• Use ${escalationAngle} to highlight why solving the gap matters now.
+• Follow the same four-section structure.
+
+
+LINKEDIN CONNECTION REQUEST
+
+Rules:
+• One sentence only
+• Human and neutral
+• No selling
+• No technical explanation
+• No questions
+
+
+LINKEDIN MESSAGE
+
+Rules:
+• Mention you reached out by email
+• Conversational tone
+• No pain explanation
+• No platform explanation
+• No meeting ask
+• No questions
+
+
+EMAIL 3 — DIRECT VALUE
+
+Purpose:
+Show one clear capability of ${platform}.
+
+Rules:
+• Acknowledge lack of response neutrally
+• Use ${spatialAdvantage} as the single capability
+• More confident tone
+• Follow the same four-section structure
+• Do NOT ask any questions
+
+
+EMAIL 4 — RELEASE
+
+Purpose:
+Graceful disengagement.
+
+Rules:
+• Short email
+• No new information
+• No platform explanation
+• No meeting ask
+• No questions
+• Calm tone
+• Do not include {{availability}}`;
 }
 
 // ============================================================
@@ -428,89 +515,6 @@ Under-explain rather than over-explain.
 
 Assume the content outline you receive is correct.
 Your task is only to turn it into clean, human language.`;
-
-// ============================================================
-// STAGE 3a: INTERNAL REWRITE — PROSPECT ANCHOR ENFORCEMENT
-// Prevents generic spatial messaging. Ensures Email 1 and Email 2
-// anchor the pain to the prospect's specific research context.
-// ============================================================
-
-const PROSPECT_ANCHOR_PROMPT = `Rewrite Email 1 and Email 2 so the pain clearly maps to the prospect's specific research context (disease, modality, or translational goal).
-
-If the pain could apply to any lab, rewrite it to anchor it to the provided prospect context.
-
-If Email 1 or Email 2 contains a setup sentence that introduces the pain indirectly — for example: "Something I hear a lot...", "A question that comes up...", "Many teams face...", "A lot of groups struggle with..." — rewrite it as a direct factual statement addressed to the reader using "you", not "teams" or "groups".
-
-Do not add facts.
-Do not increase specificity beyond what was provided.
-
-Preserve all other sections unchanged.
-Output the full rewritten sequence.`;
-
-// ============================================================
-// STAGE 3b: INTERNAL REWRITE — TIM VOICE COMPRESSION
-// Verbatim prompt — do not modify.
-// ============================================================
-
-const TIM_VOICE_REWRITE_PROMPT = `Rewrite the text so it sounds exactly like Tim Glidewell wrote it.
-
-This is a voice compression pass only.
-
-Rules for Tim's voice:
-- Prefer questions over statements
-- Speak directly to the reader's work, not to other teams or groups
-- Use simple, direct language
-- Allow light repetition
-- No marketing language
-- No metaphors or clever phrasing
-- No sales idioms
-- One concrete impressive fact per email, then stop
-- Remove explanations and stacked features
-- Replace arguments with questions
-- Be comfortable being blunt
-- Admit lack of understanding if present
-
-Constraints:
-- Preserve meaning
-- Preserve structure
-- Preserve platform and context
-- Preserve placeholders
-- Do not add information
-- Do not remove the single strongest capability
-- Shorten sentences where possible
-
-If a sentence would not be said out loud in a hallway conversation,
-rewrite it.
-
-Output only the rewritten text.`;
-
-// ============================================================
-// EXPLICIT SUPPRESSIONS — HARD-CODED
-// If forbidden content is detected, auto-rewrite or fail.
-// AI is never trusted to self-enforce these rules.
-// ============================================================
-
-const SUPPRESSION_REWRITE_PROMPT = `You are performing a targeted cleanup pass on outreach email text.
-
-Rewrite only to fix the specific violations listed below. Do not change anything else.
-
-Violations to remove or rewrite:
-- Forbidden phrases (rewrite the sentence naturally without them): "on your radar", "compare notes", "decision point", "walk through", "walkthrough", "show you", "closing the loop"
-- Demo language: remove words like "demo", "demonstration", "let me demo", "schedule a demo" — replace with conversational verbs like "talk through" or "discuss"
-- Meeting duration language: remove phrases like "30 minutes", "15-minute call", "quick call", "half hour" — do not replace with other durations
-- Competitor names: remove entirely, do not replace
-- Parentheses: remove parentheses and their contents — integrate any essential meaning into surrounding text without parentheses
-- Setup framing sentences: rewrite any sentence that introduces pain indirectly ("Something I hear a lot...", "A question that comes up...", "Many teams face...", "A lot of groups struggle with...") as a direct factual statement addressed to the reader. Use "you", not "teams", "groups", or "others"
-- Third-party framing: any reference to "many teams", "other groups", "other labs", or "researchers" doing something — rewrite to address the reader directly using "you"
-
-Preserve:
-- All section headers (Email 1, Email 2, LinkedIn Connection Request, LinkedIn Message, Email 3, Email 4)
-- All subject lines
-- All placeholders: {{first_name}}, {{availability}}
-- All platform references (CosMx, GeoMx, CellScape)
-- All structure and order
-
-Output only the cleaned text.`;
 
 function detectViolations(text: string): string[] {
   const found: string[] = [];
@@ -542,7 +546,7 @@ async function rewriteWithProspectAnchoring(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
-    max_tokens: 2048,
+    max_completion_tokens: 2048,
     messages: [
       { role: "system", content: PROSPECT_ANCHOR_PROMPT },
       {
@@ -566,7 +570,7 @@ async function rewriteInTimVoice(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
-    max_tokens: 2048,
+    max_completion_tokens: 2048,
     messages: [
       { role: "system", content: TIM_VOICE_REWRITE_PROMPT },
       { role: "user", content: sequenceText },
@@ -592,7 +596,7 @@ async function suppressViolations(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
-    max_tokens: 2048,
+    max_completion_tokens: 2048,
     messages: [
       { role: "system", content: SUPPRESSION_REWRITE_PROMPT },
       { role: "user", content: sequenceText },
@@ -954,7 +958,7 @@ export async function generateSequence(
   // ── STAGE 2: Constrained ChatGPT write (phrasing and language only) ──
   const stage2Response = await openai.chat.completions.create({
     model: "gpt-5.2",
-    max_tokens: 2048,
+    max_completion_tokens: 2048,
     messages: [
       { role: "system", content: CONSTRAINED_WRITER_PROMPT },
       { role: "user", content: userMessage },
