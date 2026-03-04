@@ -98,8 +98,8 @@ const VIOLATION_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "Competitor mention",      pattern: /\bXenium\b/i },
   { label: "Parentheses",             pattern: /\([^)]{1,200}\)/ },
   // Third-party framing — the model must never attribute pain to "teams" or "groups"
-  { label: "Third-party framing",     pattern: /\b(?:many|other|most)\s+(?:teams?|groups?|labs?|researchers?)\b/i },
-  { label: "Third-party framing",     pattern: /\b(?:teams?|groups?)\s+(?:often|tend|struggle|face|working)\b/i },
+  { label: "Third-party framing",     pattern: /\b(?:many|other|most)\s+(?:teams?|groups?|labs?)\b/i },
+  { label: "Third-party framing",     pattern: /\b(?:teams?|groups?)\s+(?:often|tend|struggle|face)\b/i },
   { label: "Setup sentence framing",  pattern: /\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\b/i },
   { label: "Setup sentence framing",  pattern: /\ba\s+(?:common\s+)?question\s+that\s+comes?\s+up\b/i },
   { label: "Setup sentence framing",  pattern: /\bcomes?\s+up\s+(?:a\s+lot|often|frequently)\b/i },
@@ -150,7 +150,6 @@ function extractSection(researchBrief: string, headingFragment: string): string 
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean)
-    .slice(0, 3)
     .join(" ")
     .trim();
 }
@@ -166,9 +165,9 @@ function sanitizeField(text: string): string {
   if (!text) return text;
   let s = text;
 
-  // Remove "many/other/these teams/groups/labs/researchers [verb]"
-  s = s.replace(/\b(?:many|other|these|most)\s+(?:teams?|groups?|labs?|researchers?|scientists?)\s+(?:often\s+|typically\s+|commonly\s+)?(?:working\s+on|studying|developing|running|using|do(?:ing)?|face|struggle|lack|tend)\b/gi, "");
-  s = s.replace(/\b(?:teams?|groups?|labs?|researchers?|scientists?)\s+(?:often|typically|tend\s+to|commonly|usually|face|struggle|lack)\b/gi, "");
+  // Remove "many/other/most teams/groups/labs [verb]"
+  s = s.replace(/\b(?:many|other|most)\s+(?:teams?|groups?|labs?)\s+(?:often\s+|typically\s+|commonly\s+)?(?:running|using|do(?:ing)?|face|struggle|lack|tend)\b/gi, "");
+  s = s.replace(/\b(?:teams?|groups?|labs?)\s+(?:often|typically|tend\s+to|commonly|usually|face|struggle|lack)\b/gi, "");
 
   // Remove "something I/we hear [a lot]", "comes up [a lot]", "a question that comes up"
   s = s.replace(/\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\s+(?:a\s+lot\s+|often\s+|frequently\s+)?(?:is\s+)?/gi, "");
@@ -543,6 +542,7 @@ async function rewriteWithProspectAnchoring(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: PROSPECT_ANCHOR_PROMPT },
       {
@@ -566,6 +566,7 @@ async function rewriteInTimVoice(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: TIM_VOICE_REWRITE_PROMPT },
       { role: "user", content: sequenceText },
@@ -591,6 +592,7 @@ async function suppressViolations(
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
     temperature: 0,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: SUPPRESSION_REWRITE_PROMPT },
       { role: "user", content: sequenceText },
@@ -952,6 +954,7 @@ export async function generateSequence(
   // ── STAGE 2: Constrained ChatGPT write (phrasing and language only) ──
   const stage2Response = await openai.chat.completions.create({
     model: "gpt-5.2",
+    max_tokens: 2048,
     messages: [
       { role: "system", content: CONSTRAINED_WRITER_PROMPT },
       { role: "user", content: userMessage },
