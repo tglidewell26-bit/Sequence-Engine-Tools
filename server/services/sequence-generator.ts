@@ -15,7 +15,6 @@ interface ContentOutline {
   platform: Platform;
   prospectAnchor: string;   // disease area, modality, or translational goal
   pain: string;             // workflow gap from Perplexity research
-  trigger: string;          // recent pressure or trigger from Perplexity research
   spatialAdvantage: string; // concrete spatial capability from Perplexity research
 }
 
@@ -162,22 +161,6 @@ function toCapabilityStatement(text: string, platform: Platform): string {
   return `With ${platform}, you can ${s[0].toLowerCase()}${s.slice(1)}`;
 }
 
-/**
- * Strip hedge words from trigger/pressure text to make it a factual statement.
- */
-function toTriggerStatement(text: string): string {
-  if (!text) return text;
-  let s = text.trim().replace(/^[-•*]\s*/, "");
-
-  s = s.replace(/\bsuggests?\b/gi, "means");
-  s = s.replace(/\bsignals?\b/gi, "means");
-  s = s.replace(/\bindicates?\b/gi, "means");
-  s = s.replace(/\blikely\b/gi, "");
-  s = s.replace(/\bpossibly\b/gi, "");
-  s = s.replace(/\bprobably\b/gi, "");
-
-  return s.replace(/\s{2,}/g, " ").trim();
-}
 
 /**
  * STAGE 1: Build a deterministic content outline from the Perplexity research output.
@@ -205,10 +188,6 @@ function buildContentOutline(researchBrief: string): ContentOutline {
     extractSection(researchBrief, "pain / gap") ||
     "cannot see the spatial organization of immune cells in tissue";
 
-  const rawTrigger =
-    extractSection(researchBrief, "Recent trigger") ||
-    extractSection(researchBrief, "trigger / pressure") ||
-    "";
 
   const rawAdvantage =
     extractSection(researchBrief, "Concrete spatial advantage") ||
@@ -219,10 +198,9 @@ function buildContentOutline(researchBrief: string): ContentOutline {
   // 2. Convert to assertive, second-person declarative statements
   const prospectAnchor = sanitizeField(rawAnchor);
   const pain          = toPainStatement(sanitizeField(rawPain));
-  const trigger       = toTriggerStatement(sanitizeField(rawTrigger));
   const spatialAdvantage = toCapabilityStatement(sanitizeField(rawAdvantage), platform);
 
-  return { platform, prospectAnchor, pain, trigger, spatialAdvantage };
+  return { platform, prospectAnchor, pain, spatialAdvantage };
 }
 
 /**
@@ -232,8 +210,7 @@ function buildContentOutline(researchBrief: string): ContentOutline {
  * The AI prompt itself contains none of these rules.
  */
 function buildUserMessage(outline: ContentOutline): string {
-  const { platform, prospectAnchor, pain, trigger, spatialAdvantage } = outline;
-  const escalationAngle = trigger || spatialAdvantage || pain;
+  const { platform, prospectAnchor, pain, spatialAdvantage } = outline;
 
   return `Write a 6-part outreach sequence using the structure below.
 
@@ -276,9 +253,9 @@ Emails 1, 2, and 3 must include this placeholder on its own line:
 Email 4 must NOT include {{availability}}.
 
 Meeting rules:
-Meeting requests are always in-person while Tim is in the area.
-Never suggest video calls or phone calls.
-Never write specific dates or times — only use {{availability}}.
+For Emails 1, 2, and 3, meeting requests are in-person while Tim is in the area.
+Email 4 may also offer a virtual call option.
+Never write specific dates or times — only use {{availability}} for Emails 1-3.
 
 
 CONTENT INPUTS
@@ -292,16 +269,19 @@ ${prospectAnchor}
 Pain / gap:
 ${pain}
 
-Escalation angle:
-${escalationAngle}
 
 Concrete capability:
 ${spatialAdvantage}
 
+Source mapping from the research brief (use these as source material, not copy/paste text):
+• For research context in Emails 1–3: primarily use "Research focus and disease area", with optional supporting context from "Workflow or sample context".
+• For pain point in Emails 1–3: primarily use "Likely pain / gap to reference", with optional supporting context from "Workflow or sample context".
+• For platform value in Emails 1–3: use "Why this instrument" and "Concrete spatial advantage to feed into ChatGPT".
+
 
 EMAIL STRUCTURE
 
-Each email must follow this structure:
+Emails 1, 2, and 3 must all use the same four-part structure below:
 
 SECTION 1 — RESEARCH CONTEXT  
 Two sentences.
@@ -329,6 +309,12 @@ Two sentences.
 EMAIL 1 — INTRODUCTION
 Purpose: introduce Bruker Spatial Biology and establish relevance.
 
+Email 1 is the only email that includes Tim's self-introduction line.
+
+First-line requirement:
+• The first non-greeting line must be exactly:
+My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.
+
 Tone:
 • Curious
 • Professional
@@ -340,7 +326,7 @@ Purpose: reframe the problem and reinforce importance.
 
 Rules:
 • Acknowledge they may have missed the first email.
-• Use ${escalationAngle} to highlight why solving the gap matters now.
+• Reinforce why solving this gap matters now.
 • Follow the same four-section structure.
 
 
@@ -387,9 +373,11 @@ Rules:
 • Short email
 • No new information
 • No platform explanation
-• No meeting ask
+• Keep tone hopeful, not final
+• Explicitly acknowledge now may not be a good time
+• Say you will follow up in a few months
+• Offer either an in-person meeting while in the area OR a virtual call
 • No questions
-• Calm tone
 • Do not include {{availability}}`;
 }
 
@@ -426,6 +414,21 @@ Rules:
 - Remove fluff and marketing language.
 - Do not add new claims, tools, or competitor mentions.
 - Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
+
+const EMAIL1_REQUIRED_INTRO_LINE = "My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.";
+
+const EMAIL4_REQUIRED_BODY = `Hi {{first_name}},
+
+It sounds like now may not be the right time, and that is completely okay.
+
+I will follow up in a few months.
+
+If you would still like to meet while I am in the area, I am happy to meet in person, or we can schedule a virtual call anytime.
+
+Best,
+Tim Glidewell
+Spatial Regional Account Manager
+Bruker Spatial Biology`;
 
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
@@ -523,6 +526,82 @@ function parseSequenceOutput(text: string): SequenceSections {
   return sections;
 }
 
+function checkEmails123Structure(sections: SequenceSections): string[] {
+  const issues: string[] = [];
+  const keys: Array<"email1" | "email2" | "email3"> = ["email1", "email2", "email3"];
+
+  const dropLines = [
+    /^Hi\s+\{\{first_name\}\},?$/i,
+    /^\{\{availability\}\}$/i,
+    /^Best,?$/i,
+    /^Thanks,?$/i,
+    /^Regards,?$/i,
+    /^Cheers,?$/i,
+    /^Tim\s+Glidewell$/i,
+    /^Spatial\s+Regional\s+Account\s+Manager$/i,
+    /^Bruker\s+Spatial\s+Biology$/i,
+  ];
+
+  for (const key of keys) {
+    const body = (sections[key]?.body || "").trim();
+    if (!body) {
+      issues.push(`[${key}] body is empty`);
+      continue;
+    }
+
+    const paragraphs = body
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .filter((p) => !dropLines.some((rx) => rx.test(p)));
+
+    const contentParagraphs = key === "email1"
+      ? paragraphs.filter((p) => p !== EMAIL1_REQUIRED_INTRO_LINE)
+      : paragraphs;
+
+    if (contentParagraphs.length < 4) {
+      issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${contentParagraphs.length}`);
+    }
+  }
+
+  return issues;
+}
+
+function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
+  const email1 = sections.email1;
+  if (!email1) return sections;
+
+  const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
+  const body = (email1.body || "").trim();
+
+  const lines = body.split("\n");
+  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
+
+  let rebuilt = filteredLines.join("\n").trim();
+  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
+
+  return {
+    ...sections,
+    email1: {
+      ...email1,
+      body: rebuilt,
+    },
+  };
+}
+
+function enforceEmail4HopefulClose(sections: SequenceSections): SequenceSections {
+  const email4 = sections.email4;
+  if (!email4) return sections;
+
+  return {
+    ...sections,
+    email4: {
+      ...email4,
+      body: EMAIL4_REQUIRED_BODY,
+    },
+  };
+}
+
 // ============================================================
 // MAIN ORCHESTRATION — THREE STAGES
 //
@@ -577,9 +656,20 @@ export async function generateSequence(
     .join(", ");
   console.log("Parsed subjects:", parsedSubjects);
 
+  const structureIssues = checkEmails123Structure(parsed);
+  if (structureIssues.length > 0) {
+    console.log(`[Structure check] Found ${structureIssues.length} issue(s):`);
+    for (const issue of structureIssues) console.log(`  ${issue}`);
+  } else {
+    console.log("[Structure check] Emails 1-3 follow expected four-part format");
+  }
+
+  const withRequiredEmail1Intro = enforceEmail1IntroLine(parsed);
+  const withHopefulEmail4 = enforceEmail4HopefulClose(withRequiredEmail1Intro);
+
   if (availabilityBlock?.trim()) {
     console.log("[Info] Availability block will be injected by formatter post-parse");
   }
 
-  return parsed;
+  return withHopefulEmail4;
 }
