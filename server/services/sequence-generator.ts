@@ -465,6 +465,128 @@ Under-explain rather than over-explain.
 Assume the content outline you receive is correct.
 Your task is only to turn it into clean, human language.`;
 
+const PROSPECT_ANCHOR_PROMPT = `You are an editor.
+
+Goal: ensure every section stays tightly anchored to the provided prospect context.
+
+Rules:
+- Keep the same 6 headers and order exactly.
+- Do not add or remove sections.
+- Do not add new facts.
+- Remove generic filler and keep references specific to the prospect context.
+- Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
+
+const TIM_VOICE_REWRITE_PROMPT = `You are editing outreach copy into Tim Glidewell's concise voice.
+
+Rules:
+- Keep all existing section headers and overall meaning.
+- Keep wording direct, plain, and human.
+- Remove fluff and marketing language.
+- Do not add new claims, tools, or competitor mentions.
+- Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
+
+const SUPPRESSION_REWRITE_PROMPT = `Rewrite the sequence to remove policy/style violations while preserving intent.
+
+Requirements:
+- Keep the same 6 section headers and order.
+- Keep all placeholders exactly as-is.
+- Remove demo language, competitor mentions, and prohibited framing.
+- Use neutral, scientific, plain language.`;
+
+function detectViolations(text: string): string[] {
+  const found: string[] = [];
+
+  for (const phrase of FORBIDDEN_PHRASES) {
+    if (text.toLowerCase().includes(phrase.toLowerCase())) {
+      found.push(`Forbidden phrase: "${phrase}"`);
+    }
+  }
+
+  for (const { label, pattern } of VIOLATION_PATTERNS) {
+    if (pattern.test(text)) {
+      found.push(label);
+    }
+  }
+
+  return Array.from(new Set(found));
+}
+
+// ============================================================
+// INTERNAL REWRITE PASS IMPLEMENTATIONS
+// ============================================================
+
+async function rewriteWithProspectAnchoring(
+  openai: OpenAI,
+  sequenceText: string,
+  prospectContext: string
+): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    temperature: 0,
+    max_completion_tokens: 2048,
+    messages: [
+      { role: "system", content: PROSPECT_ANCHOR_PROMPT },
+      {
+        role: "user",
+        content: `Prospect context: ${prospectContext}\n\n${sequenceText}`,
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No response from OpenAI during prospect anchor pass");
+  }
+  return content;
+}
+
+async function rewriteInTimVoice(
+  openai: OpenAI,
+  sequenceText: string
+): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    temperature: 0,
+    max_completion_tokens: 2048,
+    messages: [
+      { role: "system", content: TIM_VOICE_REWRITE_PROMPT },
+      { role: "user", content: sequenceText },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No response from OpenAI during Tim voice compression");
+  }
+  return content;
+}
+
+async function suppressViolations(
+  openai: OpenAI,
+  sequenceText: string
+): Promise<string> {
+  const violations = detectViolations(sequenceText);
+  if (violations.length === 0) return sequenceText;
+
+  console.log(`[Suppression] Violations detected — auto-rewriting: ${violations.join(", ")}`);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.2",
+    temperature: 0,
+    max_completion_tokens: 2048,
+    messages: [
+      { role: "system", content: SUPPRESSION_REWRITE_PROMPT },
+      { role: "user", content: sequenceText },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No response from OpenAI during suppression pass");
+  }
+  return content;
+}
+
 // ============================================================
 // SEQUENCE PARSER (unchanged)
 // ============================================================
