@@ -167,7 +167,7 @@ export default function Home() {
     const toDate = availabilityRange.to;
     const to = toDate ? format(toDate, "EEEE, MMMM d") : null;
     const headerLine = toDate && !isSameDay(availabilityRange.from, toDate)
-      ? `If you're open to meet,I'll be in town on ${from} through ${to}. I have the following availability:`
+      ? `If you're open to meet, I'll be in town on ${from} through ${to}. I have the following availability:`
       : `If you're open to meet, I'll be in town on ${from}. I have the following availability:`;
 
     const dayLines = selectedDates.map((date) => {

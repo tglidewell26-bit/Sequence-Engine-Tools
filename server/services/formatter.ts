@@ -6,87 +6,53 @@ export function enforceIntroRules(sections: SequenceSections): SequenceSections 
 
 const EMAIL_KEYS_WITH_AVAILABILITY = ["email1", "email2", "email3"];
 
-export function injectAvailability(
-  sections: SequenceSections,
-  availabilityBlock?: string,
-  timeRanges?: string
-): SequenceSections {
-  if (!availabilityBlock && !timeRanges) return sections;
+function formatAvailabilityBlock(blockText: string): string {
+  const lines = blockText.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return "";
 
-  const result = { ...sections };
+  const headerLine = lines[0];
 
-  const blockText = availabilityBlock || "";
+  const datePattern = /((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),\s+\w+\s+\d{1,2})/g;
+  const formattedHeader = headerLine.replace(datePattern, "<strong>$1</strong>");
 
-  function boldWrap(text: string): string {
-    return `<strong>${text}</strong>`;
+  const timeLines = lines.slice(1).filter(l => !/^available\s+times:?$/i.test(l));
+  const formattedTimeLines = timeLines.map(l => `<strong>${l}</strong>`);
+
+  const parts = [formattedHeader];
+  if (formattedTimeLines.length > 0) {
+    parts.push("");
+    parts.push(...formattedTimeLines);
   }
 
-  for (const key of Object.keys(result)) {
-    let body = result[key].body;
+  return parts.join("\n");
+}
 
-    if (blockText) {
-      const hasPlaceholder = /\{\{availability\}\}/i.test(body) ||
-        /\[availability\]/i.test(body) ||
-        /\{availability\}/i.test(body);
+export function injectAvailability(
+  sections: SequenceSections,
+  availabilityBlock?: string
+): SequenceSections {
+  if (!availabilityBlock?.trim()) return sections;
 
-      if (hasPlaceholder) {
-        body = body
-          .replace(/\{\{availability\}\}/gi, boldWrap(blockText))
-          .replace(/\[availability\]/gi, boldWrap(blockText))
-          .replace(/\{availability\}/gi, boldWrap(blockText));
-      } else if (EMAIL_KEYS_WITH_AVAILABILITY.includes(key)) {
-        const lines = body.split("\n");
-        const lastNonEmpty = lines.map((l, i) => ({ l: l.trim(), i }))
-          .filter(x => x.l.length > 0)
-          .pop();
+  const result = { ...sections };
+  const formatted = formatAvailabilityBlock(availabilityBlock);
+  if (!formatted) return sections;
 
-        if (lastNonEmpty) {
-          lines.splice(lastNonEmpty.i, 0, "", boldWrap(blockText), "");
-          body = lines.join("\n").replace(/\n{3,}/g, "\n\n");
-        }
-      }
-    }
+  for (const key of EMAIL_KEYS_WITH_AVAILABILITY) {
+    const section = result[key];
+    if (!section?.body) continue;
 
-    if (availabilityBlock) {
-      body = body.replace(/\[Dates\]/gi, boldWrap(availabilityBlock));
-    }
+    let body = section.body;
 
-    if (timeRanges) {
-      const timeLines = timeRanges.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-      if (timeLines.length > 0) {
-        const dateTimePattern = /\[Date\]\s*[—–\-]\s*\[Time\]/g;
-        const matches = body.match(dateTimePattern);
-        if (matches && timeLines.length === 1) {
-          if (matches.length > 1) {
-            let replaced = false;
-            body = body.replace(dateTimePattern, () => {
-              if (!replaced) {
-                replaced = true;
-                return boldWrap(timeLines[0]);
-              }
-              return "";
-            });
-            body = body.replace(/\n{3,}/g, "\n\n");
-          } else {
-            body = body.replace(dateTimePattern, boldWrap(timeLines[0]));
-          }
+    body = body
+      .replace(/\{\{availability\}\}/gi, "")
+      .replace(/\[availability\]/gi, "")
+      .replace(/\{availability\}/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
-          const availHeaderPattern = /I am available on the following dates and times\.?\s*\n/gi;
-          body = body.replace(availHeaderPattern, "");
-        } else if (matches) {
-          let matchIndex = 0;
-          body = body.replace(dateTimePattern, () => {
-            const replacement = matchIndex < timeLines.length
-              ? timeLines[matchIndex]
-              : timeLines[timeLines.length - 1];
-            matchIndex++;
-            return boldWrap(replacement);
-          });
-        }
-      }
-    }
+    body = `${body}\n\n${formatted}`;
 
-    result[key] = { ...result[key], body };
+    result[key] = { ...section, body };
   }
 
   return result;

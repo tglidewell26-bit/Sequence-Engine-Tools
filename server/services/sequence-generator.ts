@@ -249,17 +249,9 @@ Subject line rules:
 • No metaphors or clever phrasing
 • Should reference a practical scientific or workflow issue
 
-Availability rules:
-Emails 1, 2, and 3 must include this placeholder on its own line:
-
-{{availability}}
-
-Email 4 must NOT include {{availability}}.
-
-Meeting rules:
-For Emails 1, 2, and 3, meeting requests are in-person while Tim is in the area.
-Email 4 may also offer a virtual call option.
-Never write specific dates or times — only use {{availability}} for Emails 1-3.
+Do NOT write any meeting request, availability placeholder, or scheduling language.
+Meeting details and availability are injected automatically after generation.
+Do NOT include {{availability}} or any mention of "stopping by," "in-person meeting," "while I'm in the area," or similar.
 
 
 CONTENT INPUTS
@@ -305,9 +297,10 @@ Two sentences.
 • Keep the explanation concrete and scientific.
 
 SECTION 4 — CALL TO ACTION  
-Two sentences.
-• Ask for a short in-person meeting while Tim is in the area.
-• Immediately place {{availability}} on its own line.
+One sentence only.
+• Write a brief, low-pressure closing sentence that opens the door to further conversation.
+• Do NOT mention meetings, scheduling, availability, dates, times, or stopping by.
+• Do NOT include {{availability}} — it is injected automatically.
 
 
 EMAIL 1 — INTRODUCTION
@@ -380,7 +373,7 @@ Rules:
 • Explicitly acknowledge now may not be a good time
 • Say you will follow up in a few months
 • No questions
-• Do not include {{availability}}`;
+• Do NOT write any meeting request, availability, or scheduling language`;
 }
 
 // ============================================================
@@ -547,7 +540,7 @@ function removeTriggerLanguageFromEmails123(sections: SequenceSections): Sequenc
 
     const cleaned = paragraphs.filter((p) => {
       if (/^Hi\s+\{\{first_name\}\},?$/i.test(p)) return true;
-      if (/^\{\{availability\}\}$/i.test(p)) return true;
+      if (/^\{\{availability\}\}$/i.test(p)) return false;
       if (/^(?:Best|Thanks|Regards|Cheers),?$/i.test(p)) return true;
       if (/^Tim\s+Glidewell$/i.test(p)) return true;
       if (/^Spatial\s+Regional\s+Account\s+Manager$/i.test(p)) return true;
@@ -627,6 +620,38 @@ function stripAttachmentReferences(sections: SequenceSections): SequenceSections
     if (!section?.body) continue;
     const paragraphs = section.body.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
     const cleaned = paragraphs.filter((p: string) => !isAttachmentReferenceLine(p));
+    if (cleaned.length !== paragraphs.length) {
+      result[key] = { ...section, body: cleaned.join("\n\n") };
+    }
+  }
+  return result;
+}
+
+function isMeetingLanguage(line: string): boolean {
+  const lower = line.trim().toLowerCase();
+  if (/\{\{availability\}\}/i.test(lower)) return true;
+  if (/stop\s+by/i.test(lower) && /meeting|area|in.person/i.test(lower)) return true;
+  if (/in-person\s+meeting/i.test(lower)) return true;
+  if (/while\s+i.m\s+in\s+the\s+area/i.test(lower)) return true;
+  if (/set\s+up\s+a.*meeting/i.test(lower)) return true;
+  if (/i.ll\s+be\s+in\s+town/i.test(lower)) return true;
+  if (/available\s+times/i.test(lower)) return true;
+  if (/meet\s+in\s+person/i.test(lower) && !/follow\s+up/i.test(lower)) return true;
+  if (/short\s+(in-person\s+)?meeting/i.test(lower)) return true;
+  if (/can\s+(stop|come|swing)\s+by/i.test(lower)) return true;
+  if (/schedule\s+a\s+(short|brief|quick)?\s*(meeting|call|chat)/i.test(lower)) return true;
+  if (/15\s+minutes/i.test(lower) && /stop|meet|area/i.test(lower)) return true;
+  return false;
+}
+
+function stripMeetingLanguage(sections: SequenceSections): SequenceSections {
+  const keys = ["email1", "email2", "email3"];
+  const result = { ...sections };
+  for (const key of keys) {
+    const section = result[key];
+    if (!section?.body) continue;
+    const paragraphs = section.body.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
+    const cleaned = paragraphs.filter((p: string) => !isMeetingLanguage(p));
     if (cleaned.length !== paragraphs.length) {
       result[key] = { ...section, body: cleaned.join("\n\n") };
     }
@@ -743,7 +768,8 @@ export async function generateSequence(
   }
 
   const withNoAttachRefs = stripAttachmentReferences(triggerCleaned);
-  const withRequiredEmail1Intro = enforceEmail1IntroLine(withNoAttachRefs);
+  const withNoMeetingLang = stripMeetingLanguage(withNoAttachRefs);
+  const withRequiredEmail1Intro = enforceEmail1IntroLine(withNoMeetingLang);
   const withHopefulEmail4 = enforceEmail4HopefulClose(withRequiredEmail1Intro);
 
   if (availabilityBlock?.trim()) {
