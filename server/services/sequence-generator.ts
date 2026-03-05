@@ -10,107 +10,11 @@ import type { SequenceSections } from "@shared/schema";
 const ALLOWED_PLATFORMS = ["CosMx", "GeoMx", "CellScape"] as const;
 type Platform = (typeof ALLOWED_PLATFORMS)[number];
 
-type SequenceIntent =
-  | "recognition"
-  | "tension"
-  | "humanity"
-  | "redundancy"
-  | "decision"
-  | "release";
-
-const INTENT_BY_SECTION: Record<string, SequenceIntent> = {
-  email1: "recognition",
-  email2: "tension",
-  linkedinConnection: "humanity",
-  linkedinMessage: "redundancy",
-  email3: "decision",
-  email4: "release",
-} as const;
-
-interface IntentPermissions {
-  mayStatePain: boolean;
-  mayAskQuestion: boolean;
-  maxQuestions: number;
-  mayStateCapability: boolean;
-  maxCapabilities: number;
-  mayAddConsequence: boolean;
-}
-
-const PERMISSION_MATRIX: Record<SequenceIntent, IntentPermissions> = {
-  recognition:  { mayStatePain: true,  mayAskQuestion: true,  maxQuestions: 1, mayStateCapability: false, maxCapabilities: 0, mayAddConsequence: false },
-  tension:      { mayStatePain: true,  mayAskQuestion: true,  maxQuestions: 1, mayStateCapability: false, maxCapabilities: 0, mayAddConsequence: true },
-  humanity:     { mayStatePain: false, mayAskQuestion: false, maxQuestions: 0, mayStateCapability: false, maxCapabilities: 0, mayAddConsequence: false },
-  redundancy:   { mayStatePain: false, mayAskQuestion: false, maxQuestions: 0, mayStateCapability: false, maxCapabilities: 0, mayAddConsequence: false },
-  decision:     { mayStatePain: false, mayAskQuestion: false, maxQuestions: 0, mayStateCapability: true,  maxCapabilities: 1, mayAddConsequence: true },
-  release:      { mayStatePain: false, mayAskQuestion: false, maxQuestions: 0, mayStateCapability: false, maxCapabilities: 0, mayAddConsequence: false },
-};
-
-const PRESSURE_VERBS = [
-  "should we",
-  "would you",
-  "can i",
-  "are you open",
-  "could we",
-  "are you interested",
-  "would you be open",
-  "can we",
-];
-
-// Phrases that must never appear in final output — auto-rewritten if detected
-const FORBIDDEN_PHRASES = [
-  "on your radar",
-  "compare notes",
-  "decision point",
-  "walk through",
-  "walkthrough",
-  "let me demo",
-  "show you",
-  "schedule a demo",
-  "closing the loop",
-  "pilot project",
-  "pilot study",
-  "pilot program",
-  "pilot initiative",
-  "pilot effort",
-  "I've met with lots of teams",
-  "I've spoken with many teams",
-  "I've worked with several teams",
-  "I've had conversations with multiple teams",
-  "I've engaged with various teams",
-  "Demo",
-  "something i hear",
-  "i hear a lot",
-  "comes up a lot",
-  "a question that comes up",
-] as const;
-
-// Additional pattern-based violations: no demo language, no meeting duration,
-// no competitor mentions, no parentheses, no third-party/setup framing
-const VIOLATION_PATTERNS: { label: string; pattern: RegExp }[] = [
-  { label: "Demo language",           pattern: /\bdemo(?:nstrat(?:ion|e))?\b/i },
-  { label: "Meeting duration",        pattern: /\b\d+[-\s]?minute(?:s)?\b/i },
-  { label: "Meeting duration",        pattern: /\bhalf[-\s]?hour\b/i },
-  { label: "Meeting duration",        pattern: /\bquick\s+call\b/i },
-  { label: "Competitor mention",      pattern: /\b10[xX]\s*[Gg]enomics\b/i },
-  { label: "Competitor mention",      pattern: /\bVisium\b/i },
-  { label: "Competitor mention",      pattern: /\bMERFISH\b/i },
-  { label: "Competitor mention",      pattern: /\bseqFISH\b/i },
-  { label: "Competitor mention",      pattern: /\bXenium\b/i },
-  { label: "Parentheses",             pattern: /\([^)]{1,200}\)/ },
-  // Third-party framing — the model must never attribute pain to "teams" or "groups"
-  { label: "Third-party framing",     pattern: /\b(?:many|other|most)\s+(?:teams?|groups?|labs?)\b/i },
-  { label: "Third-party framing",     pattern: /\b(?:teams?|groups?)\s+(?:often|tend|struggle|face)\b/i },
-  { label: "Setup sentence framing",  pattern: /\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\b/i },
-  { label: "Setup sentence framing",  pattern: /\ba\s+(?:common\s+)?question\s+that\s+comes?\s+up\b/i },
-  { label: "Setup sentence framing",  pattern: /\bcomes?\s+up\s+(?:a\s+lot|often|frequently)\b/i },
-];
-
 // Structured content outline — ChatGPT never decides any of these values
 interface ContentOutline {
   platform: Platform;
   prospectAnchor: string;   // disease area, modality, or translational goal
   pain: string;             // workflow gap from Perplexity research
-  trigger: string;          // recent pressure or trigger from Perplexity research
   spatialAdvantage: string; // concrete spatial capability from Perplexity research
 }
 
@@ -231,6 +135,10 @@ function toPainStatement(text: string): string {
     s = `You ${s[0].toLowerCase()}${s.slice(1)}`;
   }
 
+  // Grammar cleanup for malformed "cannot <verb>ing" patterns
+  s = s.replace(/\bcannot\s+([a-z]+)izing\b/gi, "cannot $1ize");
+  s = s.replace(/\bcannot\s+([a-z]+)ing\b/gi, "cannot $1");
+
   return s;
 }
 
@@ -257,22 +165,6 @@ function toCapabilityStatement(text: string, platform: Platform): string {
   return `With ${platform}, you can ${s[0].toLowerCase()}${s.slice(1)}`;
 }
 
-/**
- * Strip hedge words from trigger/pressure text to make it a factual statement.
- */
-function toTriggerStatement(text: string): string {
-  if (!text) return text;
-  let s = text.trim().replace(/^[-•*]\s*/, "");
-
-  s = s.replace(/\bsuggests?\b/gi, "means");
-  s = s.replace(/\bsignals?\b/gi, "means");
-  s = s.replace(/\bindicates?\b/gi, "means");
-  s = s.replace(/\blikely\b/gi, "");
-  s = s.replace(/\bpossibly\b/gi, "");
-  s = s.replace(/\bprobably\b/gi, "");
-
-  return s.replace(/\s{2,}/g, " ").trim();
-}
 
 /**
  * STAGE 1: Build a deterministic content outline from the Perplexity research output.
@@ -303,10 +195,6 @@ function buildContentOutline(
     extractSection(researchBrief, "pain / gap") ||
     "cannot see the spatial organization of immune cells in tissue";
 
-  const rawTrigger =
-    extractSection(researchBrief, "Recent trigger") ||
-    extractSection(researchBrief, "trigger / pressure") ||
-    "";
 
   const rawAdvantage =
     extractSection(researchBrief, "Concrete spatial advantage") ||
@@ -317,10 +205,9 @@ function buildContentOutline(
   // 2. Convert to assertive, second-person declarative statements
   const prospectAnchor = sanitizeField(rawAnchor);
   const pain          = toPainStatement(sanitizeField(rawPain));
-  const trigger       = toTriggerStatement(sanitizeField(rawTrigger));
   const spatialAdvantage = toCapabilityStatement(sanitizeField(rawAdvantage), platform);
 
-  return { platform, prospectAnchor, pain, trigger, spatialAdvantage };
+  return { platform, prospectAnchor, pain, spatialAdvantage };
 }
 
 /**
@@ -330,8 +217,7 @@ function buildContentOutline(
  * The AI prompt itself contains none of these rules.
  */
 function buildUserMessage(outline: ContentOutline): string {
-  const { platform, prospectAnchor, pain, trigger, spatialAdvantage } = outline;
-  const escalationAngle = trigger || spatialAdvantage || pain;
+  const { platform, prospectAnchor, pain, spatialAdvantage } = outline;
 
   return `Write a 6-part outreach sequence using the structure below.
 
@@ -374,9 +260,9 @@ Emails 1, 2, and 3 must include this placeholder on its own line:
 Email 4 must NOT include {{availability}}.
 
 Meeting rules:
-Meeting requests are always in-person while Tim is in the area.
-Never suggest video calls or phone calls.
-Never write specific dates or times — only use {{availability}}.
+For Emails 1, 2, and 3, meeting requests are in-person while Tim is in the area.
+Email 4 may also offer a virtual call option.
+Never write specific dates or times — only use {{availability}} for Emails 1-3.
 
 
 CONTENT INPUTS
@@ -390,16 +276,19 @@ ${prospectAnchor}
 Pain / gap:
 ${pain}
 
-Escalation angle:
-${escalationAngle}
 
 Concrete capability:
 ${spatialAdvantage}
 
+Source mapping from the research brief (use these as source material, not copy/paste text):
+• For research context in Emails 1–3: primarily use "Research focus and disease area", with optional supporting context from "Workflow or sample context".
+• For pain point in Emails 1–3: primarily use "Likely pain / gap to reference", with optional supporting context from "Workflow or sample context".
+• For platform value in Emails 1–3: use "Why this instrument" and "Concrete spatial advantage to feed into ChatGPT".
+
 
 EMAIL STRUCTURE
 
-Each email must follow this structure:
+Emails 1, 2, and 3 must all use the same four-part structure below:
 
 SECTION 1 — RESEARCH CONTEXT  
 Two sentences.
@@ -427,6 +316,8 @@ Two sentences.
 EMAIL 1 — INTRODUCTION
 Purpose: introduce Bruker Spatial Biology and establish relevance.
 
+Email 1 is the only email that includes Tim's self-introduction line.
+
 Tone:
 • Curious
 • Professional
@@ -438,7 +329,7 @@ Purpose: reframe the problem and reinforce importance.
 
 Rules:
 • Acknowledge they may have missed the first email.
-• Use ${escalationAngle} to highlight why solving the gap matters now.
+• Reinforce why solving this gap matters now.
 • Follow the same four-section structure.
 
 
@@ -485,9 +376,11 @@ Rules:
 • Short email
 • No new information
 • No platform explanation
-• No meeting ask
+• Keep tone hopeful, not final
+• Explicitly acknowledge now may not be a good time
+• Say you will follow up in a few months
+• Offer either an in-person meeting while in the area OR a virtual call
 • No questions
-• Calm tone
 • Do not include {{availability}}`;
 }
 
@@ -516,52 +409,35 @@ Under-explain rather than over-explain.
 Assume the content outline you receive is correct.
 Your task is only to turn it into clean, human language.`;
 
-function detectViolations(text: string): string[] {
-  const found: string[] = [];
+const TIM_VOICE_REWRITE_PROMPT = `You are editing outreach copy into Tim Glidewell's concise voice.
 
-  for (const phrase of FORBIDDEN_PHRASES) {
-    if (text.toLowerCase().includes(phrase.toLowerCase())) {
-      found.push(`Forbidden phrase: "${phrase}"`);
-    }
-  }
+Rules:
+- Keep all existing section headers and overall meaning.
+- Keep wording direct, plain, and human.
+- Remove fluff and marketing language.
+- Do not add new claims, tools, or competitor mentions.
+- Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
 
-  for (const { label, pattern } of VIOLATION_PATTERNS) {
-    if (pattern.test(text)) {
-      found.push(label);
-    }
-  }
+const EMAIL1_REQUIRED_INTRO_LINE = "My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.";
 
-  return [...new Set(found)];
-}
+const EMAIL4_REQUIRED_BODY = `Hi {{first_name}},
+
+It sounds like now may not be the right time, and that is completely okay.
+
+I will follow up in a few months.
+
+If you would still like to meet while I am in the area, I am happy to meet in person, or we can schedule a virtual call anytime.
+
+Best,
+Tim Glidewell
+Spatial Regional Account Manager
+Bruker Spatial Biology`;
+
+const EMAIL4_REQUIRED_SUBJECT = "Checking in again in a few months";
 
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
 // ============================================================
-
-async function rewriteWithProspectAnchoring(
-  openai: OpenAI,
-  sequenceText: string,
-  prospectContext: string
-): Promise<string> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
-    temperature: 0,
-    max_completion_tokens: 2048,
-    messages: [
-      { role: "system", content: PROSPECT_ANCHOR_PROMPT },
-      {
-        role: "user",
-        content: `Prospect context: ${prospectContext}\n\n${sequenceText}`,
-      },
-    ],
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No response from OpenAI during prospect anchor pass");
-  }
-  return content;
-}
 
 async function rewriteInTimVoice(
   openai: OpenAI,
@@ -580,32 +456,6 @@ async function rewriteInTimVoice(
   const content = response.choices[0]?.message?.content;
   if (!content) {
     throw new Error("No response from OpenAI during Tim voice compression");
-  }
-  return content;
-}
-
-async function suppressViolations(
-  openai: OpenAI,
-  sequenceText: string
-): Promise<string> {
-  const violations = detectViolations(sequenceText);
-  if (violations.length === 0) return sequenceText;
-
-  console.log(`[Suppression] Violations detected — auto-rewriting: ${violations.join(", ")}`);
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-5.2",
-    temperature: 0,
-    max_completion_tokens: 2048,
-    messages: [
-      { role: "system", content: SUPPRESSION_REWRITE_PROMPT },
-      { role: "user", content: sequenceText },
-    ],
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No response from OpenAI during suppression pass");
   }
   return content;
 }
@@ -680,245 +530,141 @@ function parseSequenceOutput(text: string): SequenceSections {
   return sections;
 }
 
-// ============================================================
-// STAGE 4: INTENT ENFORCEMENT (POST-PARSE, DETERMINISTIC)
-// Enforces the permission matrix per section. The model never
-// decides intent — intent is mapped by section key.
-// ============================================================
+function removeTriggerLanguageFromEmails123(sections: SequenceSections): SequenceSections {
+  const keys: Array<"email1" | "email2" | "email3"> = ["email1", "email2", "email3"];
+  const triggerPattern = /\b(?:astellas|collaboration|hiring|upfront|funding|payment|announced|\$\d|\d+\s*million)\b/i;
 
-const PAIN_PATTERNS = [
-  /\bcannot\b/i,
-  /\bcan't\b/i,
-  /\black(?:s|ing)?\b/i,
-  /\blimited\s+(?:to|ability|by)\b/i,
-  /\bmiss(?:ing|es)?\b/i,
-  /\bstruggle\b/i,
-  /\bgap\b/i,
-  /\bblind\s*spot\b/i,
-  /\bunable\s+to\b/i,
-  /\bdifficult(?:y|ies)?\b/i,
-  /\bwithout\s+(?:knowing|seeing|understanding)\b/i,
-];
+  const next: SequenceSections = { ...sections };
 
-const CONSEQUENCE_PATTERNS = [
-  /\brisk\b/i,
-  /\bambiguit(?:y|ies)\b/i,
-  /\brework\b/i,
-  /\buncertain(?:ty|ties)?\b/i,
-  /\bthat\s+matters?\s+because\b/i,
-  /\bwhich\s+means?\b/i,
-  /\bconsequen(?:ce|tly)\b/i,
-  /\bwithout\s+(?:this|that|it)\b/i,
-];
+  for (const key of keys) {
+    const section = next[key];
+    if (!section?.body) continue;
 
-const CAPABILITY_PATTERNS = [
-  /\bwith\s+(?:CosMx|GeoMx|CellScape)\b/i,
-  /\b(?:CosMx|GeoMx|CellScape)\s+(?:can|enables?|allows?|provides?|offers?|lets)\b/i,
-  /\byou\s+can\s+(?:see|map|profile|detect|quantify|resolve|identify|visualize|characterize|measure)\b/i,
-  /\bsingle[- ]cell\s+(?:resolution|level|spatial)\b/i,
-  /\bwhole[- ]transcriptome\b/i,
-  /\b(?:up\s+to\s+)?\d+[,+]?\s*(?:markers?|targets?|plex)\b/i,
-  /\bspatial\s+(?:profiling|proteomics|transcriptomics|resolution|imaging)\b/i,
-  /\bsubcellular\b/i,
-  /\bin\s+situ\b/i,
-  /\bcyclic\s+(?:mIF|staining)\b/i,
-];
+    const paragraphs = section.body
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
 
-function countQuestions(text: string): number {
-  const lines = text.split("\n").filter((l) => l.trim());
-  let count = 0;
-  for (const line of lines) {
-    if (line.trim().endsWith("?")) count++;
-  }
-  return count;
-}
+    const cleaned = paragraphs.filter((p) => {
+      if (/^Hi\s+\{\{first_name\}\},?$/i.test(p)) return true;
+      if (/^\{\{availability\}\}$/i.test(p)) return true;
+      if (/^(?:Best|Thanks|Regards|Cheers),?$/i.test(p)) return true;
+      if (/^Tim\s+Glidewell$/i.test(p)) return true;
+      if (/^Spatial\s+Regional\s+Account\s+Manager$/i.test(p)) return true;
+      if (/^Bruker\s+Spatial\s+Biology$/i.test(p)) return true;
+      return !triggerPattern.test(p);
+    });
 
-function isPainSentence(sentence: string): boolean {
-  return PAIN_PATTERNS.some((p) => p.test(sentence));
-}
-
-function isConsequenceSentence(sentence: string): boolean {
-  return CONSEQUENCE_PATTERNS.some((p) => p.test(sentence));
-}
-
-function isCapabilitySentence(sentence: string): boolean {
-  return CAPABILITY_PATTERNS.some((p) => p.test(sentence));
-}
-
-function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function isProtectedContent(text: string): boolean {
-  const trimmed = text.trim();
-  if (/^\s*\{\{availability\}\}\s*$/i.test(trimmed)) return true;
-  if (/^Hi\s+\{\{first_name\}\}/i.test(trimmed)) return true;
-  if (/^Subject:/i.test(trimmed)) return true;
-  if (/^(?:Tim|Best|Thanks|Cheers|Regards)/i.test(trimmed)) return true;
-  if (/^Tim\s+Glidewell/i.test(trimmed)) return true;
-  return false;
-}
-
-function enforceQuestionLimit(body: string, maxQuestions: number, sectionKey: string, intent: string): { body: string; violations: string[] } {
-  const violations: string[] = [];
-  const sentences = splitSentences(body);
-  let questionCount = 0;
-  const kept: string[] = [];
-
-  for (const sentence of sentences) {
-    if (sentence.trim().endsWith("?")) {
-      questionCount++;
-      if (maxQuestions > 0 && questionCount <= maxQuestions) {
-        kept.push(sentence);
-      } else {
-        violations.push(`[${sectionKey}/${intent}] Removed excess question: "${sentence.slice(0, 60)}..."`);
-      }
-    } else {
-      kept.push(sentence);
-    }
+    next[key] = {
+      ...section,
+      body: cleaned.join("\n\n").trim(),
+    };
   }
 
-  return { body: kept.join(" "), violations };
+  return next;
 }
 
-function enforceIntentForSection(
-  sectionKey: string,
-  section: { subject: string; body: string }
-): { subject: string; body: string; violations: string[] } {
-  const intent = INTENT_BY_SECTION[sectionKey];
-  if (!intent) return { ...section, violations: [] };
+function checkEmails123Structure(sections: SequenceSections): string[] {
+  const issues: string[] = [];
+  const keys: Array<"email1" | "email2" | "email3"> = ["email1", "email2", "email3"];
 
-  const perms = PERMISSION_MATRIX[intent];
-  const violations: string[] = [];
-  let body = section.body;
+  const dropLines = [
+    /^Hi\s+\{\{first_name\}\},?$/i,
+    /^\{\{availability\}\}$/i,
+    /^Best,?$/i,
+    /^Thanks,?$/i,
+    /^Regards,?$/i,
+    /^Cheers,?$/i,
+    /^Tim\s+Glidewell$/i,
+    /^Spatial\s+Regional\s+Account\s+Manager$/i,
+    /^Bruker\s+Spatial\s+Biology$/i,
+  ];
 
-  const paragraphs = body.split(/\n\n+/);
-  const rebuiltParagraphs: string[] = [];
-
-  for (const paragraph of paragraphs) {
-    if (isProtectedContent(paragraph)) {
-      rebuiltParagraphs.push(paragraph);
+  for (const key of keys) {
+    const body = (sections[key]?.body || "").trim();
+    if (!body) {
+      issues.push(`[${key}] body is empty`);
       continue;
     }
 
-    const sentences = splitSentences(paragraph);
-    const keptSentences: string[] = [];
+    const paragraphs = body
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .filter((p) => !dropLines.some((rx) => rx.test(p)));
 
-    for (const sentence of sentences) {
-      const isPain = isPainSentence(sentence);
-      const isConsequence = isConsequenceSentence(sentence);
-      const isCap = isCapabilitySentence(sentence);
+    const contentParagraphs = key === "email1"
+      ? paragraphs.filter((p) => p !== EMAIL1_REQUIRED_INTRO_LINE)
+      : paragraphs;
 
-      if (!perms.mayStatePain && isPain && !isConsequence && !isCap) {
-        violations.push(`[${sectionKey}/${intent}] Removed pain: "${sentence.slice(0, 80)}..."`);
-        continue;
-      }
-
-      if (!perms.mayStateCapability && isCap) {
-        violations.push(`[${sectionKey}/${intent}] Removed capability: "${sentence.slice(0, 80)}..."`);
-        continue;
-      }
-
-      if (!perms.mayAddConsequence && isConsequence && !isPain && !isCap) {
-        violations.push(`[${sectionKey}/${intent}] Removed consequence: "${sentence.slice(0, 80)}..."`);
-        continue;
-      }
-
-      keptSentences.push(sentence);
-    }
-
-    if (keptSentences.length > 0) {
-      rebuiltParagraphs.push(keptSentences.join(" "));
+    if (contentParagraphs.length < 4) {
+      issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${contentParagraphs.length}`);
     }
   }
 
-  body = rebuiltParagraphs.join("\n\n");
-
-  if (perms.mayAskQuestion && perms.maxQuestions > 0) {
-    const qCount = countQuestions(body);
-    if (qCount > perms.maxQuestions) {
-      const result = enforceQuestionLimit(body, perms.maxQuestions, sectionKey, intent);
-      body = result.body;
-      violations.push(...result.violations);
-    }
-  } else if (!perms.mayAskQuestion) {
-    const qCount = countQuestions(body);
-    if (qCount > 0) {
-      const result = enforceQuestionLimit(body, 0, sectionKey, intent);
-      body = result.body;
-      violations.push(...result.violations);
-    }
-  }
-
-  if (perms.mayStateCapability && perms.maxCapabilities > 0) {
-    const allSentences = splitSentences(body);
-    const capSentences = allSentences.filter(isCapabilitySentence);
-    if (capSentences.length > perms.maxCapabilities) {
-      violations.push(`[${sectionKey}/${intent}] Too many capabilities (${capSentences.length}/${perms.maxCapabilities}) — keeping first`);
-      let capKept = 0;
-      const rebuilt = allSentences.filter((s) => {
-        if (isCapabilitySentence(s)) {
-          capKept++;
-          return capKept <= perms.maxCapabilities;
-        }
-        return true;
-      });
-      body = rebuilt.join(" ");
-    }
-  }
-
-  if (intent === "release") {
-    const releaseSentences = splitSentences(body);
-    const cleanedSentences: string[] = [];
-
-    for (const sentence of releaseSentences) {
-      if (isProtectedContent(sentence)) {
-        cleanedSentences.push(sentence);
-        continue;
-      }
-
-      let hasPressure = false;
-      for (const verb of PRESSURE_VERBS) {
-        const regex = new RegExp(`\\b${verb.replace(/\s+/g, "\\s+")}\\b`, "i");
-        if (regex.test(sentence)) {
-          hasPressure = true;
-          violations.push(`[${sectionKey}/release] Removed sentence with pressure verb "${verb}": "${sentence.slice(0, 60)}..."`);
-          break;
-        }
-      }
-
-      if (!hasPressure) {
-        cleanedSentences.push(sentence);
-      }
-    }
-
-    body = cleanedSentences.join(" ");
-  }
-
-  return { subject: section.subject, body: body.trim(), violations };
+  return issues;
 }
 
-function enforceIntentMatrix(
-  sections: SequenceSections
-): { enforced: SequenceSections; allViolations: string[] } {
-  const enforced: SequenceSections = {};
-  const allViolations: string[] = [];
 
-  for (const [key, section] of Object.entries(sections)) {
-    if (!section) continue;
-    const result = enforceIntentForSection(key, section);
-    enforced[key] = { subject: result.subject, body: result.body };
-    allViolations.push(...result.violations);
-  }
+function removeDuplicateEmail1IntroParagraphs(body: string): string {
+  const introLikePatterns = [
+    /\b(?:i['’]m|i\s+am)\s+tim\s+glidewell\b/i,
+    /\bspatial\s+regional\s+account\s+manager\b/i,
+    /\bbruker\s+spatial\s+biology\b/i,
+  ];
 
-  return { enforced, allViolations };
+  const paragraphs = body
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const cleaned = paragraphs.filter((paragraph) => {
+    if (paragraph === EMAIL1_REQUIRED_INTRO_LINE) return false;
+    const matchCount = introLikePatterns.reduce((n, rx) => n + (rx.test(paragraph) ? 1 : 0), 0);
+    return matchCount < 2;
+  });
+
+  return cleaned.join("\n\n").trim();
+}
+
+function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
+  const email1 = sections.email1;
+  if (!email1) return sections;
+
+  const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
+  const body = removeDuplicateEmail1IntroParagraphs((email1.body || "").trim());
+
+  const lines = body.split("\n");
+  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
+
+  let rebuilt = filteredLines.join("\n").trim();
+  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
+
+  return {
+    ...sections,
+    email1: {
+      ...email1,
+      body: rebuilt,
+    },
+  };
+}
+
+function enforceEmail4HopefulClose(sections: SequenceSections): SequenceSections {
+  const email4 = sections.email4;
+  if (!email4) return sections;
+
+  return {
+    ...sections,
+    email4: {
+      ...email4,
+      subject: EMAIL4_REQUIRED_SUBJECT,
+      body: EMAIL4_REQUIRED_BODY,
+    },
+  };
 }
 
 // ============================================================
-// MAIN ORCHESTRATION — FOUR DETERMINISTIC STAGES
+// MAIN ORCHESTRATION — THREE STAGES
 //
 //   Stage 1: Hard-coded structure & rules (pre-AI)
 //            → buildContentOutline() + buildUserMessage()
@@ -926,16 +672,7 @@ function enforceIntentMatrix(
 //   Stage 2: Constrained ChatGPT write
 //            → CONSTRAINED_WRITER_PROMPT (phrasing only)
 //
-//   Stage 3: Two internal rewrite passes
-//     3a: Prospect anchor enforcement
-//     3b: Tim voice compression
-//
-//   + Suppression pass: auto-rewrite forbidden phrases if detected
-//
-//   Stage 4: Intent enforcement (post-parse, deterministic)
-//            → enforceIntentMatrix() applies permission matrix
-//            Pain allowed only in E1/E2, capability only in E3,
-//            questions capped, E4 release valve enforced
+//   Stage 3: Tim voice compression pass
 // ============================================================
 
 export async function generateSequence(
@@ -970,42 +707,33 @@ export async function generateSequence(
 
   console.log("[Stage 2] Raw output (first 300 chars):", rawContent.slice(0, 300));
 
-  // ── STAGE 3a: Prospect anchor enforcement ──
-  const anchoredContent = await rewriteWithProspectAnchoring(
-    openai,
-    rawContent,
-    outline.prospectAnchor
-  );
-  console.log("[Stage 3a] Prospect anchor pass complete");
-
-  // ── STAGE 3b: Tim voice compression ──
-  const compressedContent = await rewriteInTimVoice(openai, anchoredContent);
-  console.log("[Stage 3b] Tim voice compression complete");
-
-  // ── SUPPRESSION: Auto-rewrite forbidden phrases if detected ──
-  const finalContent = await suppressViolations(openai, compressedContent);
+  // ── STAGE 3: Tim voice compression ──
+  const compressedContent = await rewriteInTimVoice(openai, rawContent);
+  console.log("[Stage 3] Tim voice compression complete");
 
   // ── PARSE ──
-  const parsed = parseSequenceOutput(finalContent);
+  const parsed = parseSequenceOutput(compressedContent);
   const parsedSubjects = Object.entries(parsed)
     .map(([k, v]) => `${k}: "${v.subject}"`)
     .join(", ");
   console.log("Parsed subjects:", parsedSubjects);
 
-  // ── STAGE 4: INTENT ENFORCEMENT (deterministic, post-parse) ──
-  const { enforced, allViolations } = enforceIntentMatrix(parsed);
-  if (allViolations.length > 0) {
-    console.log(`[Stage 4] Intent enforcement — ${allViolations.length} violation(s) corrected:`);
-    for (const v of allViolations) {
-      console.log(`  ${v}`);
-    }
+  const triggerCleaned = removeTriggerLanguageFromEmails123(parsed);
+
+  const structureIssues = checkEmails123Structure(triggerCleaned);
+  if (structureIssues.length > 0) {
+    console.log(`[Structure check] Found ${structureIssues.length} issue(s):`);
+    for (const issue of structureIssues) console.log(`  ${issue}`);
   } else {
-    console.log("[Stage 4] Intent enforcement — no violations found");
+    console.log("[Structure check] Emails 1-3 follow expected four-part format");
   }
+
+  const withRequiredEmail1Intro = enforceEmail1IntroLine(triggerCleaned);
+  const withHopefulEmail4 = enforceEmail4HopefulClose(withRequiredEmail1Intro);
 
   if (availabilityBlock?.trim()) {
     console.log("[Info] Availability block will be injected by formatter post-parse");
   }
 
-  return enforced;
+  return withHopefulEmail4;
 }

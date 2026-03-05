@@ -2,6 +2,56 @@ import type { Asset, SelectedAssets } from "@shared/schema";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
+
+function isUnavailableSummary(summary?: string | null): boolean {
+  if (!summary) return true;
+  const normalized = summary.trim().toLowerCase();
+  return normalized === "pdf summary unavailable." || normalized === "pdf summary unavailable";
+}
+
+function cleanToken(token?: string | null): string {
+  return (token || "")
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\.(?:pdf|png|jpg|jpeg)$/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function inferAttachmentTopic(asset: Asset): string {
+  const keyword = (asset.keywords || []).find((k) => k && k.trim().length > 3);
+  if (keyword) return cleanToken(keyword.toLowerCase());
+
+  if (!isUnavailableSummary(asset.summary)) {
+    const summary = cleanToken((asset.summary || "").toLowerCase());
+    if (summary) return summary;
+  }
+
+  const fromName = cleanToken(asset.fileName.toLowerCase());
+  const tokens = fromName
+    .split(/\s+/)
+    .filter((t) => t.length > 2)
+    .filter((t) => !["case", "study", "publication", "publications", "v", "and"].includes(t))
+    .slice(0, 6);
+
+  if (tokens.length > 0) return tokens.join(" ");
+  return "spatial biology applications";
+}
+
+function buildAttachmentReference(selectedDocAssets: Asset[]): string {
+  if (selectedDocAssets.length === 0) return "";
+
+  const uniqueTopics = Array.from(
+    new Set(selectedDocAssets.map(inferAttachmentTopic).filter(Boolean))
+  );
+  const referencePrefix = selectedDocAssets.length > 1 ? "a couple of documents" : "a document";
+
+  if (uniqueTopics.length >= 2) {
+    return `I've also attached ${referencePrefix} on ${uniqueTopics[0]} and ${uniqueTopics[1]}.`;
+  }
+
+  return `I've also attached ${referencePrefix} on ${uniqueTopics[0] || "spatial biology applications"}.`;
+}
+
 function scoreAsset(asset: Asset, emailBody: string, detectedInstrument: string): number {
   let score = 0;
   const lower = emailBody.toLowerCase();
@@ -77,15 +127,7 @@ export async function selectAssets(
   }
 
   const selectedDocuments = candidateDocs.map(d => d.fileName);
-  const selectedDocSummaries = candidateDocs
-    .map(d => d.summary?.trim())
-    .filter((summary): summary is string => Boolean(summary));
-
-  const primarySummary = selectedDocSummaries[0] || "relevant technical context";
-  const referencePrefix = selectedDocuments.length > 1 ? "a couple of relevant documents" : "a relevant document";
-  const attachmentReference = selectedDocuments.length > 0
-    ? `I've also attached ${referencePrefix} that outline ${primarySummary}.`
-    : "";
+  const attachmentReference = buildAttachmentReference(candidateDocs);
 
   return {
     image: scoredImages.length > 0 ? scoredImages[0].asset.fileName : "",
