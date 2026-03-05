@@ -591,10 +591,6 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
       .filter(Boolean)
       .filter((p) => !dropLines.some((rx) => rx.test(p)));
 
-    const contentParagraphs = key === "email1"
-      ? paragraphs.filter((p) => p !== EMAIL1_REQUIRED_INTRO_LINE)
-      : paragraphs;
-
     if (contentParagraphs.length < 4) {
       issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${contentParagraphs.length}`);
     }
