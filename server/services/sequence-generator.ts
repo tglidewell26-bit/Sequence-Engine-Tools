@@ -135,6 +135,10 @@ function toPainStatement(text: string): string {
     s = `You ${s[0].toLowerCase()}${s.slice(1)}`;
   }
 
+  // Grammar cleanup for malformed "cannot <verb>ing" patterns
+  s = s.replace(/\bcannot\s+([a-z]+)izing\b/gi, "cannot $1ize");
+  s = s.replace(/\bcannot\s+([a-z]+)ing\b/gi, "cannot $1");
+
   return s;
 }
 
@@ -430,6 +434,8 @@ Tim Glidewell
 Spatial Regional Account Manager
 Bruker Spatial Biology`;
 
+const EMAIL4_REQUIRED_SUBJECT = "Checking in again in a few months";
+
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
 // These prompts are intentionally active and used in Stage 3a/3b + suppression.
@@ -526,6 +532,40 @@ function parseSequenceOutput(text: string): SequenceSections {
   return sections;
 }
 
+function removeTriggerLanguageFromEmails123(sections: SequenceSections): SequenceSections {
+  const keys: Array<"email1" | "email2" | "email3"> = ["email1", "email2", "email3"];
+  const triggerPattern = /\b(?:astellas|collaboration|hiring|upfront|funding|payment|announced|\$\d|\d+\s*million)\b/i;
+
+  const next: SequenceSections = { ...sections };
+
+  for (const key of keys) {
+    const section = next[key];
+    if (!section?.body) continue;
+
+    const paragraphs = section.body
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const cleaned = paragraphs.filter((p) => {
+      if (/^Hi\s+\{\{first_name\}\},?$/i.test(p)) return true;
+      if (/^\{\{availability\}\}$/i.test(p)) return true;
+      if (/^(?:Best|Thanks|Regards|Cheers),?$/i.test(p)) return true;
+      if (/^Tim\s+Glidewell$/i.test(p)) return true;
+      if (/^Spatial\s+Regional\s+Account\s+Manager$/i.test(p)) return true;
+      if (/^Bruker\s+Spatial\s+Biology$/i.test(p)) return true;
+      return !triggerPattern.test(p);
+    });
+
+    next[key] = {
+      ...section,
+      body: cleaned.join("\n\n").trim(),
+    };
+  }
+
+  return next;
+}
+
 function checkEmails123Structure(sections: SequenceSections): string[] {
   const issues: string[] = [];
   const keys: Array<"email1" | "email2" | "email3"> = ["email1", "email2", "email3"];
@@ -597,6 +637,7 @@ function enforceEmail4HopefulClose(sections: SequenceSections): SequenceSections
     ...sections,
     email4: {
       ...email4,
+      subject: EMAIL4_REQUIRED_SUBJECT,
       body: EMAIL4_REQUIRED_BODY,
     },
   };
@@ -656,7 +697,9 @@ export async function generateSequence(
     .join(", ");
   console.log("Parsed subjects:", parsedSubjects);
 
-  const structureIssues = checkEmails123Structure(parsed);
+  const triggerCleaned = removeTriggerLanguageFromEmails123(parsed);
+
+  const structureIssues = checkEmails123Structure(triggerCleaned);
   if (structureIssues.length > 0) {
     console.log(`[Structure check] Found ${structureIssues.length} issue(s):`);
     for (const issue of structureIssues) console.log(`  ${issue}`);
@@ -664,7 +707,7 @@ export async function generateSequence(
     console.log("[Structure check] Emails 1-3 follow expected four-part format");
   }
 
-  const withRequiredEmail1Intro = enforceEmail1IntroLine(parsed);
+  const withRequiredEmail1Intro = enforceEmail1IntroLine(triggerCleaned);
   const withHopefulEmail4 = enforceEmail4HopefulClose(withRequiredEmail1Intro);
 
   if (availabilityBlock?.trim()) {
