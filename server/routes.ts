@@ -205,7 +205,7 @@ export async function registerRoutes(
       console.log("Step 1 complete: Research brief received");
 
       console.log("Step 2: Calling OpenAI for sequence generation...");
-      let sections = await generateSequence(leadIntel, researchBrief, availabilityBlock);
+      let sections = await generateSequence(researchBrief, availabilityBlock);
       console.log("Step 2 complete: Sequence generated");
 
       sections = injectLinksInSections(sections);

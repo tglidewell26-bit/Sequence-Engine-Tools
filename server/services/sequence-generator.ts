@@ -56,54 +56,6 @@ const PRESSURE_VERBS = [
   "can we",
 ];
 
-// Phrases that must never appear in final output — auto-rewritten if detected
-const FORBIDDEN_PHRASES = [
-  "on your radar",
-  "compare notes",
-  "decision point",
-  "walk through",
-  "walkthrough",
-  "let me demo",
-  "show you",
-  "schedule a demo",
-  "closing the loop",
-  "pilot project",
-  "pilot study",
-  "pilot program",
-  "pilot initiative",
-  "pilot effort",
-  "I've met with lots of teams",
-  "I've spoken with many teams",
-  "I've worked with several teams",
-  "I've had conversations with multiple teams",
-  "I've engaged with various teams",
-  "Demo",
-  "something i hear",
-  "i hear a lot",
-  "comes up a lot",
-  "a question that comes up",
-] as const;
-
-// Additional pattern-based violations: no demo language, no meeting duration,
-// no competitor mentions, no parentheses, no third-party/setup framing
-const VIOLATION_PATTERNS: { label: string; pattern: RegExp }[] = [
-  { label: "Demo language",           pattern: /\bdemo(?:nstrat(?:ion|e))?\b/i },
-  { label: "Meeting duration",        pattern: /\b\d+[-\s]?minute(?:s)?\b/i },
-  { label: "Meeting duration",        pattern: /\bhalf[-\s]?hour\b/i },
-  { label: "Meeting duration",        pattern: /\bquick\s+call\b/i },
-  { label: "Competitor mention",      pattern: /\b10[xX]\s*[Gg]enomics\b/i },
-  { label: "Competitor mention",      pattern: /\bVisium\b/i },
-  { label: "Competitor mention",      pattern: /\bMERFISH\b/i },
-  { label: "Competitor mention",      pattern: /\bseqFISH\b/i },
-  { label: "Competitor mention",      pattern: /\bXenium\b/i },
-  { label: "Parentheses",             pattern: /\([^)]{1,200}\)/ },
-  // Third-party framing — the model must never attribute pain to "teams" or "groups"
-  { label: "Third-party framing",     pattern: /\b(?:many|other|most)\s+(?:teams?|groups?|labs?)\b/i },
-  { label: "Third-party framing",     pattern: /\b(?:teams?|groups?)\s+(?:often|tend|struggle|face)\b/i },
-  { label: "Setup sentence framing",  pattern: /\bsomething\s+(?:i\s+|we\s+)?(?:hear|see)\b/i },
-  { label: "Setup sentence framing",  pattern: /\ba\s+(?:common\s+)?question\s+that\s+comes?\s+up\b/i },
-  { label: "Setup sentence framing",  pattern: /\bcomes?\s+up\s+(?:a\s+lot|often|frequently)\b/i },
-];
 
 // Structured content outline — ChatGPT never decides any of these values
 interface ContentOutline {
@@ -286,10 +238,7 @@ function toTriggerStatement(text: string): string {
  *   - which angle to use
  *   - which platform to reference
  */
-function buildContentOutline(
-  _leadIntel: string,
-  researchBrief: string
-): ContentOutline {
+function buildContentOutline(researchBrief: string): ContentOutline {
   const platform = extractPlatform(researchBrief);
 
   // Extract raw text from Perplexity sections
@@ -946,7 +895,7 @@ function enforceIntentMatrix(
 }
 
 // ============================================================
-// MAIN ORCHESTRATION — FOUR DETERMINISTIC STAGES
+// MAIN ORCHESTRATION — DETERMINISTIC STAGES
 //
 //   Stage 1: Hard-coded structure & rules (pre-AI)
 //            → buildContentOutline() + buildUserMessage()
@@ -954,20 +903,13 @@ function enforceIntentMatrix(
 //   Stage 2: Constrained ChatGPT write
 //            → CONSTRAINED_WRITER_PROMPT (phrasing only)
 //
-//   Stage 3: Two internal rewrite passes
-//     3a: Prospect anchor enforcement
-//     3b: Tim voice compression
-//
-//   + Suppression pass: auto-rewrite forbidden phrases if detected
-//
-//   Stage 4: Intent enforcement (post-parse, deterministic)
+//   Stage 3: Intent enforcement (post-parse, deterministic)
 //            → enforceIntentMatrix() applies permission matrix
 //            Pain allowed only in E1/E2, capability only in E3,
 //            questions capped, E4 release valve enforced
 // ============================================================
 
 export async function generateSequence(
-  leadIntel: string,
   researchBrief: string,
   availabilityBlock?: string
 ): Promise<SequenceSections> {
@@ -977,7 +919,7 @@ export async function generateSequence(
   });
 
   // ── STAGE 1: Build deterministic content outline (no AI involved) ──
-  const outline = buildContentOutline(leadIntel, researchBrief);
+  const outline = buildContentOutline(researchBrief);
   console.log(
     `[Stage 1] Platform: ${outline.platform} | Anchor: ${outline.prospectAnchor.slice(0, 60)}...`
   );
@@ -998,37 +940,22 @@ export async function generateSequence(
 
   console.log("[Stage 2] Raw output (first 300 chars):", rawContent.slice(0, 300));
 
-  // ── STAGE 3a: Prospect anchor enforcement ──
-  const anchoredContent = await rewriteWithProspectAnchoring(
-    openai,
-    rawContent,
-    outline.prospectAnchor
-  );
-  console.log("[Stage 3a] Prospect anchor pass complete");
-
-  // ── STAGE 3b: Tim voice compression ──
-  const compressedContent = await rewriteInTimVoice(openai, anchoredContent);
-  console.log("[Stage 3b] Tim voice compression complete");
-
-  // ── SUPPRESSION: Auto-rewrite forbidden phrases if detected ──
-  const finalContent = await suppressViolations(openai, compressedContent);
-
   // ── PARSE ──
-  const parsed = parseSequenceOutput(finalContent);
+  const parsed = parseSequenceOutput(rawContent);
   const parsedSubjects = Object.entries(parsed)
     .map(([k, v]) => `${k}: "${v.subject}"`)
     .join(", ");
   console.log("Parsed subjects:", parsedSubjects);
 
-  // ── STAGE 4: INTENT ENFORCEMENT (deterministic, post-parse) ──
+  // ── STAGE 3: INTENT ENFORCEMENT (deterministic, post-parse) ──
   const { enforced, allViolations } = enforceIntentMatrix(parsed);
   if (allViolations.length > 0) {
-    console.log(`[Stage 4] Intent enforcement — ${allViolations.length} violation(s) corrected:`);
+    console.log(`[Stage 3] Intent enforcement — ${allViolations.length} violation(s) corrected:`);
     for (const v of allViolations) {
       console.log(`  ${v}`);
     }
   } else {
-    console.log("[Stage 4] Intent enforcement — no violations found");
+    console.log("[Stage 3] Intent enforcement — no violations found");
   }
 
   if (availabilityBlock?.trim()) {
