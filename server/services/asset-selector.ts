@@ -12,12 +12,12 @@ function isUnavailableSummary(summary?: string | null): boolean {
 function cleanToken(token?: string | null): string {
   return (token || "")
     .replace(/[_\-.]+/g, " ")
-    .replace(/\b(?:pdf|casestudy|publication|publications?|image|png|jpg|jpeg|mb|human|ffpe)\b/gi, "")
+    .replace(/\.(?:pdf|png|jpg|jpeg)$/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
 
-function inferAttachmentTopic(asset: Asset): string | null {
+function inferAttachmentTopic(asset: Asset): string {
   const keyword = (asset.keywords || []).find((k) => k && k.trim().length > 3);
   if (keyword) return cleanToken(keyword.toLowerCase());
 
@@ -27,38 +27,30 @@ function inferAttachmentTopic(asset: Asset): string | null {
   }
 
   const fromName = cleanToken(asset.fileName.toLowerCase());
-  if (!fromName) return null;
-
   const tokens = fromName
     .split(/\s+/)
-    .filter((t) => t.length > 3)
-    .slice(0, 5);
+    .filter((t) => t.length > 2)
+    .filter((t) => !["case", "study", "publication", "publications", "v", "and"].includes(t))
+    .slice(0, 6);
 
-  if (tokens.length === 0) return null;
-  return tokens.join(" ");
+  if (tokens.length > 0) return tokens.join(" ");
+  return "spatial biology applications";
 }
 
 function buildAttachmentReference(selectedDocAssets: Asset[]): string {
   if (selectedDocAssets.length === 0) return "";
 
-  const topics = selectedDocAssets
-    .map(inferAttachmentTopic)
-    .filter((t): t is string => Boolean(t));
-
-  const uniqueTopics = Array.from(new Set(topics));
+  const uniqueTopics = Array.from(
+    new Set(selectedDocAssets.map(inferAttachmentTopic).filter(Boolean))
+  );
   const referencePrefix = selectedDocAssets.length > 1 ? "a couple of documents" : "a document";
 
   if (uniqueTopics.length >= 2) {
     return `I've also attached ${referencePrefix} on ${uniqueTopics[0]} and ${uniqueTopics[1]}.`;
   }
 
-  if (uniqueTopics.length === 1) {
-    return `I've also attached ${referencePrefix} on ${uniqueTopics[0]}.`;
-  }
-
-  return `I've also attached ${referencePrefix} relevant to this workflow and disease context.`;
+  return `I've also attached ${referencePrefix} on ${uniqueTopics[0] || "spatial biology applications"}.`;
 }
-
 
 function scoreAsset(asset: Asset, emailBody: string, detectedInstrument: string): number {
   let score = 0;

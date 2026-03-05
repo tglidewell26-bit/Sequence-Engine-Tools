@@ -313,6 +313,8 @@ Two sentences.
 EMAIL 1 — INTRODUCTION
 Purpose: introduce Bruker Spatial Biology and establish relevance.
 
+Email 1 is the only email that includes Tim's self-introduction line.
+
 Tone:
 • Curious
 • Professional
@@ -412,6 +414,8 @@ Rules:
 - Remove fluff and marketing language.
 - Do not add new claims, tools, or competitor mentions.
 - Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
+
+const EMAIL1_REQUIRED_INTRO_LINE = "My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.";
 
 const EMAIL4_REQUIRED_BODY = `Hi {{first_name}},
 
@@ -599,42 +603,40 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
   return issues;
 }
 
+
+function removeDuplicateEmail1IntroParagraphs(body: string): string {
+  const introLikePatterns = [
+    /\b(?:i['’]m|i\s+am)\s+tim\s+glidewell\b/i,
+    /\bspatial\s+regional\s+account\s+manager\b/i,
+    /\bbruker\s+spatial\s+biology\b/i,
+  ];
+
+  const paragraphs = body
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const cleaned = paragraphs.filter((paragraph) => {
+    if (paragraph === EMAIL1_REQUIRED_INTRO_LINE) return false;
+    const matchCount = introLikePatterns.reduce((n, rx) => n + (rx.test(paragraph) ? 1 : 0), 0);
+    return matchCount < 2;
+  });
+
+  return cleaned.join("\n\n").trim();
+}
+
 function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
   const email1 = sections.email1;
   if (!email1) return sections;
 
   const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
-  const body = (email1.body || "").trim();
+  const body = removeDuplicateEmail1IntroParagraphs((email1.body || "").trim());
 
-  const redundantIntroPatterns = [
-    /^my name is tim glidewell/i,
-    /^i'm tim glidewell/i,
-    /^i am tim glidewell/i,
-    /^tim glidewell here/i,
-    /^this is tim glidewell/i,
-    /^i'm your spatial regional account manager/i,
-  ];
+  const lines = body.split("\n");
+  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
 
-  const paragraphs = body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-
-  const cleaned = paragraphs.filter((p) => {
-    const trimmed = p.trim();
-    if (trimmed === requiredLine) return false;
-    if (redundantIntroPatterns.some((rx) => rx.test(trimmed))) return false;
-    return true;
-  });
-
-  const greetingPattern = /^hi\s+\{\{first_name\}\}/i;
-  const greetingIdx = cleaned.findIndex((p) => greetingPattern.test(p.trim()));
-
-  let rebuilt: string;
-  if (greetingIdx >= 0) {
-    const before = cleaned.slice(0, greetingIdx + 1);
-    const after = cleaned.slice(greetingIdx + 1);
-    rebuilt = [...before, requiredLine, ...after].join("\n\n");
-  } else {
-    rebuilt = [requiredLine, ...cleaned].join("\n\n");
-  }
+  let rebuilt = filteredLines.join("\n").trim();
+  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
 
   return {
     ...sections,
