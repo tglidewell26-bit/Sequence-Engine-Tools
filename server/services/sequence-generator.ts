@@ -313,7 +313,9 @@ Two sentences.
 EMAIL 1 — INTRODUCTION
 Purpose: introduce Bruker Spatial Biology and establish relevance.
 
-Email 1 is the only email that includes Tim's self-introduction line.
+Do NOT write any self-introduction line (e.g. "My name is Tim Glidewell…" or "I'm Tim Glidewell…"). The introduction is injected automatically after the greeting. Start the body with the research context section immediately after "Hi {{first_name}},".
+
+Do NOT write any attachment reference sentence. Attachments are handled automatically.
 
 Tone:
 • Curious
@@ -328,6 +330,7 @@ Rules:
 • Acknowledge they may have missed the first email.
 • Reinforce why solving this gap matters now.
 • Follow the same four-section structure.
+• Do NOT write any attachment reference sentence. Attachments are handled automatically.
 
 
 LINKEDIN CONNECTION REQUEST
@@ -600,25 +603,36 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
 }
 
 
-function removeDuplicateEmail1IntroParagraphs(body: string): string {
-  const introLikePatterns = [
-    /\b(?:i['’]m|i\s+am)\s+tim\s+glidewell\b/i,
-    /\bspatial\s+regional\s+account\s+manager\b/i,
-    /\bbruker\s+spatial\s+biology\b/i,
-  ];
+function isIntroParagraph(paragraph: string): boolean {
+  const p = paragraph.trim();
+  if (p === EMAIL1_REQUIRED_INTRO_LINE) return true;
+  const lower = p.toLowerCase().replace(/[\u2018\u2019\u0060]/g, "'");
+  const hasTimName = /\btim\s+glidewell\b/i.test(lower);
+  const hasRole = /account\s+manager|spatial\s+biology|bruker\s+spatial|e-meet|nice\s+to\s+meet/i.test(lower);
+  if (hasTimName && hasRole) return true;
+  if (/^(?:my name is|i'm|i am)\s+tim\s+glidewell/i.test(lower)) return true;
+  return false;
+}
 
-  const paragraphs = body
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+function isAttachmentReferenceLine(line: string): boolean {
+  const lower = line.trim().toLowerCase();
+  if (/attach.*document/i.test(lower)) return true;
+  if (/pdf\s+summary\s+unavailable/i.test(lower)) return true;
+  return false;
+}
 
-  const cleaned = paragraphs.filter((paragraph) => {
-    if (paragraph === EMAIL1_REQUIRED_INTRO_LINE) return false;
-    const matchCount = introLikePatterns.reduce((n, rx) => n + (rx.test(paragraph) ? 1 : 0), 0);
-    return matchCount < 2;
-  });
-
-  return cleaned.join("\n\n").trim();
+function stripAttachmentReferences(sections: SequenceSections): SequenceSections {
+  const result = { ...sections };
+  for (const key of Object.keys(result)) {
+    const section = result[key];
+    if (!section?.body) continue;
+    const paragraphs = section.body.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
+    const cleaned = paragraphs.filter((p: string) => !isAttachmentReferenceLine(p));
+    if (cleaned.length !== paragraphs.length) {
+      result[key] = { ...section, body: cleaned.join("\n\n") };
+    }
+  }
+  return result;
 }
 
 function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
@@ -626,13 +640,21 @@ function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
   if (!email1) return sections;
 
   const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
-  const body = removeDuplicateEmail1IntroParagraphs((email1.body || "").trim());
+  const body = (email1.body || "").trim();
 
-  const lines = body.split("\n");
-  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
+  const paragraphs = body.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
+  const cleaned = paragraphs.filter((p: string) => !isIntroParagraph(p));
 
-  let rebuilt = filteredLines.join("\n").trim();
-  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
+  const greetingIdx = cleaned.findIndex((p: string) => /^hi\s+\{\{first_name\}\}/i.test(p.trim()));
+
+  let rebuilt: string;
+  if (greetingIdx >= 0) {
+    const before = cleaned.slice(0, greetingIdx + 1);
+    const after = cleaned.slice(greetingIdx + 1);
+    rebuilt = [...before, requiredLine, ...after].join("\n\n");
+  } else {
+    rebuilt = ["Hi {{first_name}},", requiredLine, ...cleaned].join("\n\n");
+  }
 
   return {
     ...sections,
@@ -721,7 +743,8 @@ export async function generateSequence(
     console.log("[Structure check] Emails 1-3 follow expected four-part format");
   }
 
-  const withRequiredEmail1Intro = enforceEmail1IntroLine(triggerCleaned);
+  const withNoAttachRefs = stripAttachmentReferences(triggerCleaned);
+  const withRequiredEmail1Intro = enforceEmail1IntroLine(withNoAttachRefs);
   const withHopefulEmail4 = enforceEmail4HopefulClose(withRequiredEmail1Intro);
 
   if (availabilityBlock?.trim()) {
