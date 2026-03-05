@@ -2,6 +2,64 @@ import type { Asset, SelectedAssets } from "@shared/schema";
 
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 
+
+function isUnavailableSummary(summary?: string | null): boolean {
+  if (!summary) return true;
+  const normalized = summary.trim().toLowerCase();
+  return normalized === "pdf summary unavailable." || normalized === "pdf summary unavailable";
+}
+
+function cleanToken(token?: string | null): string {
+  return (token || "")
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\b(?:pdf|casestudy|publication|publications?|image|png|jpg|jpeg|mb|human|ffpe)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function inferAttachmentTopic(asset: Asset): string | null {
+  const keyword = (asset.keywords || []).find((k) => k && k.trim().length > 3);
+  if (keyword) return cleanToken(keyword.toLowerCase());
+
+  if (!isUnavailableSummary(asset.summary)) {
+    const summary = cleanToken((asset.summary || "").toLowerCase());
+    if (summary) return summary;
+  }
+
+  const fromName = cleanToken(asset.fileName.toLowerCase());
+  if (!fromName) return null;
+
+  const tokens = fromName
+    .split(/\s+/)
+    .filter((t) => t.length > 3)
+    .slice(0, 5);
+
+  if (tokens.length === 0) return null;
+  return tokens.join(" ");
+}
+
+function buildAttachmentReference(selectedDocAssets: Asset[]): string {
+  if (selectedDocAssets.length === 0) return "";
+
+  const topics = selectedDocAssets
+    .map(inferAttachmentTopic)
+    .filter((t): t is string => Boolean(t));
+
+  const uniqueTopics = Array.from(new Set(topics));
+  const referencePrefix = selectedDocAssets.length > 1 ? "a couple of documents" : "a document";
+
+  if (uniqueTopics.length >= 2) {
+    return `I've also attached ${referencePrefix} on ${uniqueTopics[0]} and ${uniqueTopics[1]}.`;
+  }
+
+  if (uniqueTopics.length === 1) {
+    return `I've also attached ${referencePrefix} on ${uniqueTopics[0]}.`;
+  }
+
+  return `I've also attached ${referencePrefix} relevant to this workflow and disease context.`;
+}
+
+
 function scoreAsset(asset: Asset, emailBody: string, detectedInstrument: string): number {
   let score = 0;
   const lower = emailBody.toLowerCase();
@@ -77,15 +135,7 @@ export async function selectAssets(
   }
 
   const selectedDocuments = candidateDocs.map(d => d.fileName);
-  const selectedDocSummaries = candidateDocs
-    .map(d => d.summary?.trim())
-    .filter((summary): summary is string => Boolean(summary));
-
-  const primarySummary = selectedDocSummaries[0] || "relevant technical context";
-  const referencePrefix = selectedDocuments.length > 1 ? "a couple of relevant documents" : "a relevant document";
-  const attachmentReference = selectedDocuments.length > 0
-    ? `I've also attached ${referencePrefix} that outline ${primarySummary}.`
-    : "";
+  const attachmentReference = buildAttachmentReference(candidateDocs);
 
   return {
     image: scoredImages.length > 0 ? scoredImages[0].asset.fileName : "",
