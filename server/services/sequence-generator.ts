@@ -614,11 +614,35 @@ function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
   const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
   const body = (email1.body || "").trim();
 
-  const lines = body.split("\n");
-  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
+  const redundantIntroPatterns = [
+    /^my name is tim glidewell/i,
+    /^i'm tim glidewell/i,
+    /^i am tim glidewell/i,
+    /^tim glidewell here/i,
+    /^this is tim glidewell/i,
+    /^i'm your spatial regional account manager/i,
+  ];
 
-  let rebuilt = filteredLines.join("\n").trim();
-  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
+  const paragraphs = body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+
+  const cleaned = paragraphs.filter((p) => {
+    const trimmed = p.trim();
+    if (trimmed === requiredLine) return false;
+    if (redundantIntroPatterns.some((rx) => rx.test(trimmed))) return false;
+    return true;
+  });
+
+  const greetingPattern = /^hi\s+\{\{first_name\}\}/i;
+  const greetingIdx = cleaned.findIndex((p) => greetingPattern.test(p.trim()));
+
+  let rebuilt: string;
+  if (greetingIdx >= 0) {
+    const before = cleaned.slice(0, greetingIdx + 1);
+    const after = cleaned.slice(greetingIdx + 1);
+    rebuilt = [...before, requiredLine, ...after].join("\n\n");
+  } else {
+    rebuilt = [requiredLine, ...cleaned].join("\n\n");
+  }
 
   return {
     ...sections,
