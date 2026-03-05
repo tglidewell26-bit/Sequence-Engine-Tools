@@ -379,7 +379,6 @@ Rules:
 • Keep tone hopeful, not final
 • Explicitly acknowledge now may not be a good time
 • Say you will follow up in a few months
-• Offer either an in-person meeting while in the area OR a virtual call
 • No questions
 • Do not include {{availability}}`;
 }
