@@ -174,10 +174,7 @@ function toCapabilityStatement(text: string, platform: Platform): string {
  *   - which angle to use
  *   - which platform to reference
  */
-function buildContentOutline(
-  _leadIntel: string,
-  researchBrief: string
-): ContentOutline {
+function buildContentOutline(researchBrief: string): ContentOutline {
   const platform = extractPlatform(researchBrief);
 
   // Extract raw text from Perplexity sections
@@ -435,6 +432,7 @@ Bruker Spatial Biology`;
 
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
+// These prompts are intentionally active and used in Stage 3a/3b + suppression.
 // ============================================================
 
 async function rewriteInTimVoice(
@@ -617,7 +615,6 @@ function enforceEmail4HopefulClose(sections: SequenceSections): SequenceSections
 // ============================================================
 
 export async function generateSequence(
-  leadIntel: string,
   researchBrief: string,
   availabilityBlock?: string
 ): Promise<SequenceSections> {
@@ -627,7 +624,7 @@ export async function generateSequence(
   });
 
   // ── STAGE 1: Build deterministic content outline (no AI involved) ──
-  const outline = buildContentOutline(leadIntel, researchBrief);
+  const outline = buildContentOutline(researchBrief);
   console.log(
     `[Stage 1] Platform: ${outline.platform} | Anchor: ${outline.prospectAnchor.slice(0, 60)}...`
   );
