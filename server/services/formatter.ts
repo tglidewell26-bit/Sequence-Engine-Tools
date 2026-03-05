@@ -6,6 +6,19 @@ export function enforceIntroRules(sections: SequenceSections): SequenceSections 
 
 const EMAIL_KEYS_WITH_AVAILABILITY = ["email1", "email2", "email3"];
 
+export function injectCTALine(sections: SequenceSections, instrument: string): SequenceSections {
+  const ctaLine = `I would love to stop by and discuss how the ${instrument} can fit into your research.`;
+  const result = { ...sections };
+
+  for (const key of EMAIL_KEYS_WITH_AVAILABILITY) {
+    const section = result[key];
+    if (!section?.body) continue;
+    result[key] = { ...section, body: `${section.body.trim()}\n\n${ctaLine}` };
+  }
+
+  return result;
+}
+
 function formatAvailabilityBlock(blockText: string): string {
   const lines = blockText.split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return "";

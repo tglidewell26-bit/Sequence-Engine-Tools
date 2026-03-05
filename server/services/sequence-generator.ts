@@ -296,11 +296,8 @@ Two sentences.
 • Use the concept in ${spatialAdvantage}.
 • Keep the explanation concrete and scientific.
 
-SECTION 4 — CALL TO ACTION  
-One sentence only.
-• Write a brief, low-pressure closing sentence that opens the door to further conversation.
-• Do NOT mention meetings, scheduling, availability, dates, times, or stopping by.
-• Do NOT include {{availability}} — it is injected automatically.
+Do NOT write a call-to-action section. The CTA is injected automatically after generation.
+End each email after the platform value section — do not add closing sentences about meetings, sharing examples, sending info, or next steps.
 
 
 EMAIL 1 — INTRODUCTION
@@ -586,8 +583,8 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
       .filter(Boolean)
       .filter((p) => !dropLines.some((rx) => rx.test(p)));
 
-    if (paragraphs.length < 4) {
-      issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${paragraphs.length}`);
+    if (paragraphs.length < 3) {
+      issues.push(`[${key}] expected 3 core content paragraphs (research, pain, value) but found ${paragraphs.length}`);
     }
   }
 
@@ -627,7 +624,7 @@ function stripAttachmentReferences(sections: SequenceSections): SequenceSections
   return result;
 }
 
-function isMeetingLanguage(line: string): boolean {
+function isMeetingOrOfferLanguage(line: string): boolean {
   const lower = line.trim().toLowerCase();
   if (/\{\{availability\}\}/i.test(lower)) return true;
   if (/stop\s+by/i.test(lower) && /meeting|area|in.person/i.test(lower)) return true;
@@ -641,6 +638,11 @@ function isMeetingLanguage(line: string): boolean {
   if (/can\s+(stop|come|swing)\s+by/i.test(lower)) return true;
   if (/schedule\s+a\s+(short|brief|quick)?\s*(meeting|call|chat)/i.test(lower)) return true;
   if (/15\s+minutes/i.test(lower) && /stop|meet|area/i.test(lower)) return true;
+  if (/^if\s+(this|that|it|you)/i.test(lower) && /\b(share|send|show|point|walk|relevant|helpful|want|interested|useful|curious)\b/i.test(lower)) return true;
+  if (/i\s+can\s+(share|send|show|point|walk)/i.test(lower)) return true;
+  if (/happy\s+to\s+(share|send|show|walk|set|discuss|chat)/i.test(lower)) return true;
+  if (/let\s+me\s+know\s+if/i.test(lower)) return true;
+  if (/open\s+to\s+(a\s+)?(quick|short|brief)?\s*(conversation|chat|call|discussion)/i.test(lower)) return true;
   return false;
 }
 
@@ -651,7 +653,7 @@ function stripMeetingLanguage(sections: SequenceSections): SequenceSections {
     const section = result[key];
     if (!section?.body) continue;
     const paragraphs = section.body.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
-    const cleaned = paragraphs.filter((p: string) => !isMeetingLanguage(p));
+    const cleaned = paragraphs.filter((p: string) => !isMeetingOrOfferLanguage(p));
     if (cleaned.length !== paragraphs.length) {
       result[key] = { ...section, body: cleaned.join("\n\n") };
     }

@@ -6,7 +6,7 @@ import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
 import { detectInstrument } from "./services/parser";
-import { injectAvailability } from "./services/formatter";
+import { injectAvailability, injectCTALine } from "./services/formatter";
 import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
@@ -210,12 +210,14 @@ export async function registerRoutes(
 
       sections = injectLinksInSections(sections);
 
+      const allSectionText = Object.values(sections).map(s => `${s.subject} ${s.body}`).join(" ");
+      const instrument = detectInstrument(allSectionText);
+
+      sections = injectCTALine(sections, instrument);
+
       if (availabilityBlock && availabilityBlock.trim()) {
         sections = injectAvailability(sections, availabilityBlock.trim());
       }
-
-      const allSectionText = Object.values(sections).map(s => `${s.subject} ${s.body}`).join(" ");
-      const instrument = detectInstrument(allSectionText);
 
       const keywords = extractKeywords(leadIntel, researchBrief);
       console.log(`Extracted ${keywords.length} keywords for asset matching`);
