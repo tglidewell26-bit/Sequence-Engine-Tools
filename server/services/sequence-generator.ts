@@ -313,12 +313,6 @@ Two sentences.
 EMAIL 1 — INTRODUCTION
 Purpose: introduce Bruker Spatial Biology and establish relevance.
 
-Email 1 is the only email that includes Tim's self-introduction line.
-
-First-line requirement:
-• The first non-greeting line must be exactly:
-My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.
-
 Tone:
 • Curious
 • Professional
