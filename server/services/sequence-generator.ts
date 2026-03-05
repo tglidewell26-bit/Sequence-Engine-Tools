@@ -594,8 +594,8 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
       .filter(Boolean)
       .filter((p) => !dropLines.some((rx) => rx.test(p)));
 
-    if (contentParagraphs.length < 4) {
-      issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${contentParagraphs.length}`);
+    if (paragraphs.length < 4) {
+      issues.push(`[${key}] expected 4 core content paragraphs (research, pain, value, CTA) but found ${paragraphs.length}`);
     }
   }
 
