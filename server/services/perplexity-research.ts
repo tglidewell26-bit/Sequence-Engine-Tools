@@ -16,11 +16,9 @@ what the company works on
 
 what samples and workflows they likely use
 
-what tools they likely already have
-
 which ONE Bruker spatial instrument fits best and why
 
-what pains, triggers, and spatial advantages an outreach sequence can reference
+what pains and spatial advantages an outreach sequence can reference
 
 HOW to talk about this company in 2–3 plain-English sentences that sound like a human who has read about them (not copied from their website)
 
@@ -57,8 +55,6 @@ a clear view of the company's biology and disease area
 
 a realistic picture of their samples and workflows
 
-a sense of what tools or methods they likely already use
-
 ONE recommended Bruker platform and a concrete, defensible reason
 
 a few focused "angle inputs" the outreach system can turn into sequences
@@ -71,7 +67,6 @@ You can use the prior fit notes and internal comments as hints about what to res
 REQUIRED OUTPUT FORMAT
 
 Use short bullets or short sentences.
-Maximum 3 bullets per subsection unless clearly needed.
 If information is unavailable, write: Not specified.
 
 Output sections in this exact order and with these headings:
@@ -82,15 +77,12 @@ Location
 
 Research focus and disease area
 
-1–3 bullets
+Detailed summary (multiple bullets or short paragraphs as needed)
 
 Workflow or sample context
 
-1–3 bullets
+2–5 bullets
 
-Current or likely tools / methods
-
-1–3 bullets
 
 Suggested Bruker instrument
 
@@ -102,7 +94,6 @@ Outreach angle inputs
 
 Likely pain / gap to reference: 1–2 bullets
 
-Recent trigger / pressure: 1–2 bullets
 
 Concrete spatial advantage to feed into ChatGPT: 1–2 bullets, framed as a testable yes/no-type question or capability
 
@@ -131,7 +122,7 @@ Identify main disease areas (e.g., solid tumors, immunology, neurology).
 
 Name the main modality and programs if known (e.g., T cell engagers, ADCs, small molecules).
 
-Describe the core biological or translational questions they are likely trying to answer (e.g., tumor microenvironment mechanisms, target expression, resistance, patient stratification).
+Provide a detailed summary of the core biological and translational questions they are trying to answer, including specific disease programs, mechanisms, and trial-stage context where available.
 
 Workflow or sample context
 
@@ -141,13 +132,6 @@ Describe any translational, clinical biomarker, or discovery workflows they are 
 
 You may use phrases like "likely" when inferring from pipeline and modality.
 
-Current or likely tools / methods
-
-List current or likely non-spatial methods: IHC, mIF, flow cytometry, bulk RNA-seq, scRNA-seq, standard digital pathology, etc.
-
-Only include tools that are either explicitly mentioned or strongly standard for that type of work.
-
-Phrase carefully with "likely" if something is inferred.
 
 Suggested Bruker instrument
 
@@ -171,9 +155,6 @@ Likely pain / gap to reference:
 
 Describe everyday, practical limitations this group probably faces (e.g., can see target expression but not how immune cells are spatially organized).
 
-Recent trigger / pressure:
-
-Use deals, funding, new trials, key hires, or R&D spend shifts as signals that pressure is increasing to solve those limitations.
 
 Concrete spatial advantage to feed into ChatGPT:
 
