@@ -513,6 +513,7 @@ function detectViolations(text: string): string[] {
 
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
+// These prompts are intentionally active and used in Stage 3a/3b + suppression.
 // ============================================================
 
 async function rewriteWithProspectAnchoring(
