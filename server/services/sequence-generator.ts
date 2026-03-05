@@ -413,8 +413,6 @@ Rules:
 - Do not add new claims, tools, or competitor mentions.
 - Preserve placeholders like {{first_name}} and {{availability}} exactly.`;
 
-const EMAIL1_REQUIRED_INTRO_LINE = "My name is Tim Glidewell, and I am your Spatial Regional Account Manager for Bruker Spatial Biology. It's nice to e-meet you.";
-
 const EMAIL4_REQUIRED_BODY = `Hi {{first_name}},
 
 It sounds like now may not be the right time, and that is completely okay.
