@@ -178,10 +178,7 @@ function toCapabilityStatement(text: string, platform: Platform): string {
  *   - which angle to use
  *   - which platform to reference
  */
-function buildContentOutline(
-  _leadIntel: string,
-  researchBrief: string
-): ContentOutline {
+function buildContentOutline(researchBrief: string): ContentOutline {
   const platform = extractPlatform(researchBrief);
 
   // Extract raw text from Perplexity sections
@@ -441,6 +438,7 @@ const EMAIL4_REQUIRED_SUBJECT = "Checking in again in a few months";
 
 // ============================================================
 // INTERNAL REWRITE PASS IMPLEMENTATIONS
+// These prompts are intentionally active and used in Stage 3a/3b + suppression.
 // ============================================================
 
 async function rewriteInTimVoice(
@@ -609,40 +607,42 @@ function checkEmails123Structure(sections: SequenceSections): string[] {
   return issues;
 }
 
-
-function removeDuplicateEmail1IntroParagraphs(body: string): string {
-  const introLikePatterns = [
-    /\b(?:i'm|i am)\s+tim\s+glidewell\b/i,
-    /\bspatial\s+regional\s+account\s+manager\b/i,
-    /\bbruker\s+spatial\s+biology\b/i,
-  ];
-
-  const paragraphs = body
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  const cleaned = paragraphs.filter((paragraph) => {
-    if (paragraph === EMAIL1_REQUIRED_INTRO_LINE) return false;
-    const matchCount = introLikePatterns.reduce((n, rx) => n + (rx.test(paragraph) ? 1 : 0), 0);
-    return matchCount < 2;
-  });
-
-  return cleaned.join("\n\n").trim();
-}
-
 function enforceEmail1IntroLine(sections: SequenceSections): SequenceSections {
   const email1 = sections.email1;
   if (!email1) return sections;
 
   const requiredLine = EMAIL1_REQUIRED_INTRO_LINE;
-  const body = removeDuplicateEmail1IntroParagraphs((email1.body || "").trim());
+  const body = (email1.body || "").trim();
 
-  const lines = body.split("\n");
-  const filteredLines = lines.filter((line) => line.trim() !== requiredLine);
+  const redundantIntroPatterns = [
+    /^my name is tim glidewell/i,
+    /^i'm tim glidewell/i,
+    /^i am tim glidewell/i,
+    /^tim glidewell here/i,
+    /^this is tim glidewell/i,
+    /^i'm your spatial regional account manager/i,
+  ];
 
-  let rebuilt = filteredLines.join("\n").trim();
-  rebuilt = rebuilt ? `${requiredLine}\n\n${rebuilt}` : requiredLine;
+  const paragraphs = body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+
+  const cleaned = paragraphs.filter((p) => {
+    const trimmed = p.trim();
+    if (trimmed === requiredLine) return false;
+    if (redundantIntroPatterns.some((rx) => rx.test(trimmed))) return false;
+    return true;
+  });
+
+  const greetingPattern = /^hi\s+\{\{first_name\}\}/i;
+  const greetingIdx = cleaned.findIndex((p) => greetingPattern.test(p.trim()));
+
+  let rebuilt: string;
+  if (greetingIdx >= 0) {
+    const before = cleaned.slice(0, greetingIdx + 1);
+    const after = cleaned.slice(greetingIdx + 1);
+    rebuilt = [...before, requiredLine, ...after].join("\n\n");
+  } else {
+    rebuilt = [requiredLine, ...cleaned].join("\n\n");
+  }
 
   return {
     ...sections,
@@ -680,7 +680,6 @@ function enforceEmail4HopefulClose(sections: SequenceSections): SequenceSections
 // ============================================================
 
 export async function generateSequence(
-  leadIntel: string,
   researchBrief: string,
   availabilityBlock?: string
 ): Promise<SequenceSections> {
@@ -690,7 +689,7 @@ export async function generateSequence(
   });
 
   // ── STAGE 1: Build deterministic content outline (no AI involved) ──
-  const outline = buildContentOutline(leadIntel, researchBrief);
+  const outline = buildContentOutline(researchBrief);
   console.log(
     `[Stage 1] Platform: ${outline.platform} | Anchor: ${outline.prospectAnchor.slice(0, 60)}...`
   );
