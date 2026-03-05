@@ -17,23 +17,70 @@ function cleanToken(token?: string | null): string {
     .trim();
 }
 
-function inferAttachmentTopic(asset: Asset): string {
-  const keyword = (asset.keywords || []).find((k) => k && k.trim().length > 3);
-  if (keyword) return cleanToken(keyword.toLowerCase());
+const DISEASE_MAP: Record<string, string> = {
+  "oncology": "oncology applications",
+  "tumor": "tumor microenvironment analysis",
+  "cancer": "cancer research",
+  "immunology": "immunology workflows",
+  "autoimmune": "autoimmune disease research",
+  "neuroscience": "neuroscience applications",
+  "neurodegeneration": "neurodegeneration research",
+  "infectiousdisease": "infectious disease research",
+  "infectious": "infectious disease research",
+  "diabetes": "diabetes research",
+  "fibrosis": "fibrosis studies",
+  "multidisease": "multi-disease spatial profiling",
+};
 
+const TECHNIQUE_MAP: Record<string, string> = {
+  "wholetranscriptome": "whole transcriptome spatial profiling",
+  "singlecellatlas": "single-cell spatial atlas workflows",
+  "macrophageheterogeneity": "macrophage heterogeneity analysis",
+  "viralreservoir": "viral reservoir mapping",
+  "cellcellinteractions": "cell-cell interaction mapping",
+  "immuneprofiling": "immune profiling",
+  "tumormicroenvironment": "tumor microenvironment characterization",
+  "biomarkerdiscovery": "biomarker discovery",
+  "spatialcontext": "spatial context analysis",
+};
+
+function inferAttachmentTopic(asset: Asset): string {
   if (!isUnavailableSummary(asset.summary)) {
     const summary = cleanToken((asset.summary || "").toLowerCase());
-    if (summary) return summary;
+    if (summary && summary.length > 10) return summary;
   }
 
-  const fromName = cleanToken(asset.fileName.toLowerCase());
-  const tokens = fromName
-    .split(/\s+/)
-    .filter((t) => t.length > 2)
-    .filter((t) => !["case", "study", "publication", "publications", "v", "and"].includes(t))
-    .slice(0, 6);
+  const name = asset.fileName.replace(/\.pdf$/gi, "").replace(/\.pdf$/gi, "");
+  const parts = name.split(/[_\-.]/).map(p => p.toLowerCase().trim()).filter(Boolean);
 
-  if (tokens.length > 0) return tokens.join(" ");
+  const skipWords = new Set(["cosmx", "geomx", "cellscape", "bruker", "nanostring", "image", "png", "jpg", "pdf", "mb", "casestudy", "publication"]);
+
+  let disease = "";
+  let technique = "";
+  let tissue = "";
+
+  for (const part of parts) {
+    if (skipWords.has(part)) continue;
+    if (/^\d/.test(part)) continue;
+
+    for (const [key, label] of Object.entries(DISEASE_MAP)) {
+      if (part.includes(key)) { disease = label; break; }
+    }
+    for (const [key, label] of Object.entries(TECHNIQUE_MAP)) {
+      if (part.includes(key)) { technique = label; break; }
+    }
+    if (/ffpe|frozen|tissue|biopsy|lymphnode|colon|pancreas|lung|brain|liver|kidney|prostate/i.test(part)) {
+      tissue = part.replace(/ffpe/i, "FFPE").replace(/human/i, "human ");
+    }
+  }
+
+  if (technique) return technique;
+  if (disease) return disease;
+
+  const keyword = (asset.keywords || []).find((k) => k && k.trim().length > 5);
+  if (keyword) return cleanToken(keyword.toLowerCase());
+
+  if (tissue) return `spatial profiling in ${tissue} samples`;
   return "spatial biology applications";
 }
 
