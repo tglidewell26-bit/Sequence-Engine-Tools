@@ -36,10 +36,10 @@ function autoGenerateName(leadIntel: string): string {
     city = commaIdx > 0 ? location.slice(0, commaIdx).trim() : location;
   }
 
-  const instrument = (fields[12] || "").trim();
+  const instrument = (fields[13] || "").trim();
 
   const parts = [company, city, instrument].filter(p => p.length > 0);
-  return parts.length > 0 ? parts.join(" ") : "Untitled Sequence";
+  return parts.length > 0 ? parts.join("_") : "Untitled Sequence";
 }
 
 const updateSequenceSchema = z.object({

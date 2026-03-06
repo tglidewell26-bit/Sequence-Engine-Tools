@@ -229,7 +229,7 @@ export default function Home() {
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/sequences/generate", {
         leadIntel,
-        name: sequenceName || "Untitled Sequence",
+        name: sequenceName.trim() || undefined,
         availabilityBlock: availabilityBlock.trim() || undefined,
       });
       return res.json() as Promise<GenerateResult>;
