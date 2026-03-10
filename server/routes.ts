@@ -23,25 +23,46 @@ const generateSchema = z.object({
   professorLastName: z.string().optional(),
 });
 
+const KNOWN_INSTRUMENTS = ["GeoMx", "CosMx", "CellScape"];
+
+function findInstrument(fields: string[]): string {
+  for (const field of fields) {
+    const trimmed = field.trim();
+    for (const inst of KNOWN_INSTRUMENTS) {
+      if (trimmed === inst) return inst;
+    }
+  }
+  return "";
+}
+
 function autoGenerateName(leadIntel: string): string {
   const fields = leadIntel.split("\t");
+  const field0 = (fields[0] || "").trim();
+  const isCommercial = /^\d{4}-/.test(field0);
 
-  let company = (fields[1] || "").trim();
-  company = company
-    .replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Co\.?|Incorporated|Limited|L\.?P\.?)$/i, "")
-    .trim();
+  if (isCommercial) {
+    let company = (fields[1] || "").trim();
+    company = company
+      .replace(/,?\s*(Inc\.?|LLC|Ltd\.?|Corp\.?|Corporation|Co\.?|Incorporated|Limited|L\.?P\.?)$/i, "")
+      .trim();
 
-  let city = "";
-  const location = (fields[3] || "").trim();
-  if (location) {
-    const commaIdx = location.lastIndexOf(",");
-    city = commaIdx > 0 ? location.slice(0, commaIdx).trim() : location;
+    let city = "";
+    const location = (fields[3] || "").trim();
+    if (location) {
+      const commaIdx = location.lastIndexOf(",");
+      city = commaIdx > 0 ? location.slice(0, commaIdx).trim() : location;
+    }
+
+    const instrument = (fields[13] || "").trim() || findInstrument(fields);
+    const parts = [company, city, instrument].filter(p => p.length > 0);
+    return parts.length > 0 ? parts.join("_") : "Untitled Sequence";
+  } else {
+    const university = (fields[1] || "").trim();
+    const piName = field0;
+    const instrument = findInstrument(fields);
+    const parts = [university, piName, instrument].filter(p => p.length > 0);
+    return parts.length > 0 ? parts.join("_") : "Untitled Sequence";
   }
-
-  const instrument = (fields[13] || "").trim();
-
-  const parts = [company, city, instrument].filter(p => p.length > 0);
-  return parts.length > 0 ? parts.join("_") : "Untitled Sequence";
 }
 
 const updateSequenceSchema = z.object({
