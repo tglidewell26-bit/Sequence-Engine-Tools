@@ -71,7 +71,7 @@ client/src/
 - `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit AI integration for asset selection (gpt-5-mini)
 
 ## Rules (Hard-Coded)
-- Assets are inserted into Email 1 and Email 2 only (each gets unique assets)
+- Assets are inserted into Email 1 and Email 2 only (each gets 1 image + 1 document, unique per email)
 - Never insert assets into LinkedIn sections or Email 3/4
 - Images go AFTER the instrument/solution paragraph, not before
 - All post-processing logic is deterministic (links, dates, asset placement)

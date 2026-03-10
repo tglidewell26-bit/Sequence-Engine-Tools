@@ -87,16 +87,8 @@ function inferAttachmentTopic(asset: Asset): string {
 function buildAttachmentReference(selectedDocAssets: Asset[]): string {
   if (selectedDocAssets.length === 0) return "";
 
-  const uniqueTopics = Array.from(
-    new Set(selectedDocAssets.map(inferAttachmentTopic).filter(Boolean))
-  );
-  const referencePrefix = selectedDocAssets.length > 1 ? "a couple of documents" : "a document";
-
-  if (uniqueTopics.length >= 2) {
-    return `I've also attached ${referencePrefix} on ${uniqueTopics[0]} and ${uniqueTopics[1]}.`;
-  }
-
-  return `I've also attached ${referencePrefix} on ${uniqueTopics[0] || "spatial biology applications"}.`;
+  const topic = inferAttachmentTopic(selectedDocAssets[0]) || "spatial biology applications";
+  return `I've also attached a document on ${topic}.`;
 }
 
 function scoreAsset(asset: Asset, emailBody: string, detectedInstrument: string): number {
@@ -166,7 +158,7 @@ export async function selectAssets(
   let combinedSize = 0;
   const candidateDocs: Asset[] = [];
   for (const { asset } of scoredDocs) {
-    if (candidateDocs.length >= 2) break;
+    if (candidateDocs.length >= 1) break;
     if (combinedSize + asset.size <= MAX_ATTACHMENT_SIZE) {
       candidateDocs.push(asset);
       combinedSize += asset.size;

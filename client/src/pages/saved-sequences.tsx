@@ -26,7 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Eye, Pencil, RotateCcw, Trash2, Copy, Check, FileText, Calendar, Save } from "lucide-react";
-import type { Sequence, SequenceSections } from "@shared/schema";
+import type { Sequence, SequenceSections, SelectedAssets } from "@shared/schema";
 import { format } from "date-fns";
 
 const SECTION_ORDER: { key: string; label: string }[] = [
@@ -76,6 +76,12 @@ function formatBodyHtml(body: string): string {
     boldPlaceholders.push(text);
     return `__BOLD_PLACEHOLDER_${idx}__`;
   });
+  const imagePlaceholders: string[] = [];
+  temp = temp.replace(/\[Insert Image: (.+?)\]/g, (_match, fileName) => {
+    const idx = imagePlaceholders.length;
+    imagePlaceholders.push(fileName);
+    return `__IMAGE_PLACEHOLDER_${idx}__`;
+  });
   let html = temp.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   for (let i = 0; i < boldPlaceholders.length; i++) {
     const safeText = boldPlaceholders[i].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -83,6 +89,10 @@ function formatBodyHtml(body: string): string {
   }
   for (let i = 0; i < linkPlaceholders.length; i++) {
     html = html.replace(`__LINK_PLACEHOLDER_${i}__`, linkPlaceholders[i]);
+  }
+  for (let i = 0; i < imagePlaceholders.length; i++) {
+    const safeFileName = imagePlaceholders[i].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    html = html.replace(`__IMAGE_PLACEHOLDER_${i}__`, `<span class="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded px-2 py-0.5 text-xs font-medium">Image: ${safeFileName}</span>`);
   }
   return html;
 }
@@ -243,6 +253,11 @@ function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
           {SECTION_ORDER.map(({ key, label }) => {
             const section = sections[key];
             if (!section) return null;
+            const assets: SelectedAssets | null | undefined =
+              key === "email1" ? (sequence as any).selectedAssets :
+              key === "email2" ? (sequence as any).selectedAssetsEmail2 :
+              null;
+            const hasAttachments = key === "email1" || key === "email2";
             return (
               <div key={key} className="space-y-2">
                 <h3 className="font-semibold text-sm">{label}</h3>
@@ -265,6 +280,25 @@ function ViewDialog({ sequence, open, onOpenChange }: ViewDialogProps) {
                   isBody
                   onSaved={(v) => setSections(prev => ({ ...prev, [key]: { ...prev[key], body: v } }))}
                 />
+                {hasAttachments && assets && (assets.image || (assets.documents && assets.documents.length > 0)) && (
+                  <div className="mt-2 space-y-1" data-testid={`attachments-${key}`}>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Attachments</span>
+                    <div className="bg-muted/50 rounded-md p-3 space-y-1.5">
+                      {assets.image && (
+                        <div className="flex items-start gap-2 text-xs" data-testid={`attachment-image-${key}`}>
+                          <span className="mt-1 w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span className="break-all">Image: {assets.image}</span>
+                        </div>
+                      )}
+                      {assets.documents?.map((doc, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs" data-testid={`attachment-doc-${key}-${i}`}>
+                          <span className="mt-1 w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                          <span className="break-all">{doc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
