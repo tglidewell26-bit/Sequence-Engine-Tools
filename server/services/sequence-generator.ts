@@ -722,8 +722,8 @@ export async function generateSequence(
   availabilityBlock?: string
 ): Promise<SequenceSections> {
   const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: "https://api.openai.com/v1",
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   });
 
   // ── STAGE 1: Build deterministic content outline (no AI involved) ──
