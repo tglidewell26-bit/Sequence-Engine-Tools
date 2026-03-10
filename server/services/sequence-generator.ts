@@ -434,7 +434,7 @@ async function rewriteInTimVoice(
   sequenceText: string
 ): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4",
     temperature: 0,
     max_completion_tokens: 2048,
     messages: [
@@ -722,8 +722,8 @@ export async function generateSequence(
   availabilityBlock?: string
 ): Promise<SequenceSections> {
   const openai = new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: "https://api.openai.com/v1",
   });
 
   // ── STAGE 1: Build deterministic content outline (no AI involved) ──
@@ -735,7 +735,7 @@ export async function generateSequence(
 
   // ── STAGE 2: Constrained ChatGPT write (phrasing and language only) ──
   const stage2Response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4",
     max_completion_tokens: 2048,
     messages: [
       { role: "system", content: CONSTRAINED_WRITER_PROMPT },
