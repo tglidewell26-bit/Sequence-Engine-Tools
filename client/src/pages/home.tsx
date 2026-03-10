@@ -119,6 +119,8 @@ export default function Home() {
   const [leadIntel, setLeadIntel] = useState("");
   const [sequenceName, setSequenceName] = useState("");
   const [availabilityBlock, setAvailabilityBlock] = useState("");
+  const [targetType, setTargetType] = useState<"company" | "professor">("company");
+  const [professorLastName, setProfessorLastName] = useState("");
   const [availabilityRange, setAvailabilityRange] = useState<DateRange | undefined>();
   const [dailyAvailability, setDailyAvailability] = useState<Record<string, TimeRange[]>>({});
   const [result, setResult] = useState<GenerateResult | null>(null);
@@ -231,6 +233,8 @@ export default function Home() {
         leadIntel,
         name: sequenceName.trim() || undefined,
         availabilityBlock: availabilityBlock.trim() || undefined,
+        targetType,
+        professorLastName: targetType === "professor" ? professorLastName.trim() || undefined : undefined,
       });
       return res.json() as Promise<GenerateResult>;
     },
@@ -294,6 +298,31 @@ export default function Home() {
             onChange={(e) => setSequenceName(e.target.value)}
             data-testid="input-sequence-name"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="target-type">Target Type</Label>
+          <Select value={targetType} onValueChange={(value: "company" | "professor") => setTargetType(value)}>
+            <SelectTrigger id="target-type" data-testid="select-target-type">
+              <SelectValue placeholder="Select target type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="company">Company</SelectItem>
+              <SelectItem value="professor">Professor / Lab</SelectItem>
+            </SelectContent>
+          </Select>
+          {targetType === "professor" && (
+            <div className="space-y-2">
+              <Label htmlFor="professor-last-name">Professor Last Name</Label>
+              <Input
+                id="professor-last-name"
+                placeholder="e.g. Smith (used as Smith lab)"
+                value={professorLastName}
+                onChange={(e) => setProfessorLastName(e.target.value)}
+                data-testid="input-professor-last-name"
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -416,7 +445,7 @@ export default function Home() {
         <Button
           className="w-full"
           onClick={() => generateMutation.mutate()}
-          disabled={!leadIntel.trim() || generateMutation.isPending}
+          disabled={!leadIntel.trim() || (targetType === "professor" && !professorLastName.trim()) || generateMutation.isPending}
           data-testid="button-generate"
         >
           {generateMutation.isPending ? (

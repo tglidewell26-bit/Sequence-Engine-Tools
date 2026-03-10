@@ -6,7 +6,7 @@ import fs from "fs";
 import { z } from "zod";
 import { storage } from "./storage";
 import { detectInstrument } from "./services/parser";
-import { injectAvailability, injectCTALine } from "./services/formatter";
+import { injectAvailability, injectCTALine, convertToProfessorLabTargeting } from "./services/formatter";
 import { injectLinksInSections } from "./services/link-injector";
 import { selectAssets } from "./services/asset-selector";
 import { summarizePdf } from "./services/asset-summarizer";
@@ -19,6 +19,8 @@ const generateSchema = z.object({
   leadIntel: z.string().min(1, "Lead intel is required").max(50000),
   name: z.string().optional(),
   availabilityBlock: z.string().optional(),
+  targetType: z.enum(["company", "professor"]).default("company"),
+  professorLastName: z.string().optional(),
 });
 
 function autoGenerateName(leadIntel: string): string {
@@ -197,7 +199,7 @@ export async function registerRoutes(
       if (!parseResult.success) {
         return res.status(400).json({ error: parseResult.error.errors[0]?.message || "Invalid input" });
       }
-      const { leadIntel, availabilityBlock } = parseResult.data;
+      const { leadIntel, availabilityBlock, targetType, professorLastName } = parseResult.data;
       const name = parseResult.data.name?.trim() || autoGenerateName(leadIntel);
 
       console.log("Step 1: Calling Perplexity for company research...");
@@ -213,7 +215,17 @@ export async function registerRoutes(
       const allSectionText = Object.values(sections).map(s => `${s.subject} ${s.body}`).join(" ");
       const instrument = detectInstrument(allSectionText);
 
-      sections = injectCTALine(sections, instrument);
+
+      if (targetType === "professor") {
+        const normalizedLastName = (professorLastName || "").trim();
+        if (!normalizedLastName) {
+          return res.status(400).json({ error: "Professor last name is required for professor targeting" });
+        }
+        const labName = `${normalizedLastName} lab`;
+        sections = convertToProfessorLabTargeting(sections, labName);
+      }
+
+      sections = injectCTALine(sections, instrument, targetType);
 
       if (availabilityBlock && availabilityBlock.trim()) {
         sections = injectAvailability(sections, availabilityBlock.trim());
