@@ -1,14 +1,14 @@
 # Bruker Outreach Sequence Engine
 
 ## Overview
-A two-step AI-powered scientific outreach sequence generator for Bruker Spatial Biology. Pastes a lead data row from Google Sheets, researches the company via Perplexity Sonar, generates a tailored 6-part outreach sequence via OpenAI GPT-5.2, then applies deterministic post-processing (link injection, availability insertion, asset selection and placement).
+A two-step AI-powered scientific outreach sequence generator for Bruker Spatial Biology. Pastes a lead data row from Google Sheets, researches the company via Perplexity Sonar, generates a tailored 6-part outreach sequence via OpenAI GPT-5.4, then applies deterministic post-processing (link injection, availability insertion, asset selection and placement).
 
 ## Architecture
 - **Frontend**: React + TypeScript with Tailwind CSS, shadcn/ui components
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL via Drizzle ORM
 - **AI Step 1**: Perplexity Sonar API (company research)
-- **AI Step 2**: OpenAI GPT-5.2 via user's own API key (sequence generation)
+- **AI Step 2**: OpenAI GPT-5.4 via user's own API key (sequence generation)
 - **AI Asset Selection**: OpenAI via Replit AI Integrations (gpt-5-mini for asset matching)
 
 ## Key Features
@@ -19,7 +19,7 @@ A two-step AI-powered scientific outreach sequence generator for Bruker Spatial 
 ## Generation Pipeline
 1. User pastes lead data row (tab-separated Google Sheets data)
 2. Perplexity Sonar API researches the company → structured research brief
-3. OpenAI GPT-5.2 generates 6-part outreach sequence using research brief + lead intel
+3. OpenAI GPT-5.4 generates 6-part outreach sequence using research brief + lead intel
 4. Inject hyperlinks as HTML anchor tags (GeoMx, CosMx, CellScape, Bruker Spatial Biology → product URLs)
 5. Inject availability block into emails 1-3
 6. Extract keywords from lead intel + research brief for asset pre-filtering
@@ -37,7 +37,7 @@ server/storage.ts         - Storage interface (DatabaseStorage)
 server/routes.ts          - API routes with multer file upload
 server/services/
   perplexity-research.ts  - Perplexity Sonar API company research
-  sequence-generator.ts   - OpenAI GPT-5.2 sequence generation + text parser
+  sequence-generator.ts   - OpenAI GPT-5.4 sequence generation + text parser
   keyword-matcher.ts      - Regex keyword extraction & asset pre-filtering
   link-injector.ts        - Hyperlink map injection (deterministic)
   formatter.ts            - Availability block injection
@@ -67,7 +67,7 @@ client/src/
 
 ## Environment Secrets
 - `PERPLEXITY_API_KEY` - Perplexity Sonar API key for company research
-- `OPENAI_API_KEY` - OpenAI API key for GPT-5.2 sequence generation
+- `OPENAI_API_KEY` - OpenAI API key for GPT-5.4 sequence generation
 - `AI_INTEGRATIONS_OPENAI_API_KEY` / `AI_INTEGRATIONS_OPENAI_BASE_URL` - Replit AI integration for asset selection (gpt-5-mini)
 
 ## Rules (Hard-Coded)
