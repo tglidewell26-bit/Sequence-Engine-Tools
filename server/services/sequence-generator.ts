@@ -434,7 +434,7 @@ async function rewriteInTimVoice(
   sequenceText: string
 ): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: "gpt-5.4",
+    model: "gpt-5.2",
     temperature: 0,
     max_completion_tokens: 2048,
     messages: [
@@ -735,7 +735,7 @@ export async function generateSequence(
 
   // ── STAGE 2: Constrained ChatGPT write (phrasing and language only) ──
   const stage2Response = await openai.chat.completions.create({
-    model: "gpt-5.4",
+    model: "gpt-5.2",
     max_completion_tokens: 2048,
     messages: [
       { role: "system", content: CONSTRAINED_WRITER_PROMPT },
